@@ -47,15 +47,9 @@ class ProductController extends Controller
             $query->where('designation', 'LIKE', '%' . $request->input('designation') . '%');
         }
 
-        // Global search (searchValue)
+        // Global search (searchValue) — tolerant token-based matching
         if ($request->filled('searchValue')) {
-            $searchValue = $request->input('searchValue');
-            $query->where(function ($q) use ($searchValue) {
-                $q->where('ref', 'LIKE', "%{$searchValue}%")
-                    ->orWhere('designation', 'LIKE', "%{$searchValue}%")
-                    ->orWhere('marque', 'LIKE', "%{$searchValue}%")
-                    ->orWhere('fournisseur', 'LIKE', "%{$searchValue}%");
-            });
+            $this->applyTolerantSearch($query, $request->input('searchValue'));
         }
 
         // Advanced filters
@@ -171,14 +165,9 @@ class ProductController extends Controller
             $sortBy = 'date';
         }
 
-        // Simple global search (we can add a search input later)
+        // Global search (searchValue) — tolerant token-based matching
         if ($request->has('searchValue') && !empty($request->input('searchValue'))) {
-            $searchValue = $request->input('searchValue');
-            $query->where(function ($q) use ($searchValue) {
-                $q->where('ref', 'LIKE', "%{$searchValue}%")
-                    ->orWhere('designation', 'LIKE', "%{$searchValue}%")
-                    ->orWhere('marque', 'LIKE', "%{$searchValue}%");
-            });
+            $this->applyTolerantSearch($query, $request->input('searchValue'));
         }
 
         // Get total count before pagination
@@ -250,15 +239,9 @@ class ProductController extends Controller
             $query->where('designation', 'LIKE', '%' . $request->input('designation') . '%');
         }
 
-        // Global search (searchValue)
+        // Global search (searchValue) — tolerant token-based matching
         if ($request->filled('searchValue')) {
-            $searchValue = $request->input('searchValue');
-            $query->where(function ($q) use ($searchValue) {
-                $q->where('ref', 'LIKE', "%{$searchValue}%")
-                    ->orWhere('designation', 'LIKE', "%{$searchValue}%")
-                    ->orWhere('marque', 'LIKE', "%{$searchValue}%")
-                    ->orWhere('fournisseur', 'LIKE', "%{$searchValue}%");
-            });
+            $this->applyTolerantSearch($query, $request->input('searchValue'));
         }
 
         // Advanced filters (exact copy)
@@ -284,5 +267,50 @@ class ProductController extends Controller
         $filename = 'products_export_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
         return Excel::download(new ProductsExport($query), $filename);
+    }
+
+    /**
+     * Apply tolerant token-based search across multiple fields.
+     *
+     * Normalizes input (lowercase, strips special chars), splits into tokens,
+     * and requires ALL tokens to match at least one searchable field.
+     * Order of tokens does not matter.
+     *
+     * Example: "plaq ar tigu" matches "PLAQUETTE FREIN AR TIGUAN"
+     *
+     * PERFORMANCE NOTE:
+     * For datasets >100k rows, consider adding a FULLTEXT index:
+     *   ALTER TABLE products ADD FULLTEXT INDEX ft_search(ref, designation, marque, fournisseur);
+     * Then switch this method to use MATCH ... AGAINST for much faster searches.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $searchValue
+     * @return void
+     */
+    private function applyTolerantSearch($query, string $searchValue): void
+    {
+        // Normalize: lowercase, keep only letters, numbers, and spaces
+        $normalized = strtolower(preg_replace('/[^a-zA-Z0-9\s]/', '', $searchValue));
+
+        // Tokenize by whitespace
+        $tokens = array_filter(explode(' ', $normalized));
+
+        if (empty($tokens)) {
+            return;
+        }
+
+        $searchableFields = ['ref', 'designation', 'marque', 'fournisseur'];
+
+        // Each token must match at least one field (OR within token)
+        // All tokens must match (AND across tokens)
+        $query->where(function ($q) use ($tokens, $searchableFields) {
+            foreach ($tokens as $token) {
+                $q->where(function ($subQ) use ($token, $searchableFields) {
+                    foreach ($searchableFields as $field) {
+                        $subQ->orWhere($field, 'LIKE', '%' . $token . '%');
+                    }
+                });
+            }
+        });
     }
 }

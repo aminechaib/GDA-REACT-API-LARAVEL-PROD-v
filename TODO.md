@@ -1,10 +1,10 @@
-# TODO: Fix Excel Import Duplicates
+# Tolerant Main Search Implementation
 
-## Approved Plan Steps:
-- [x] Step 1: Add `import()` method to ProductController.php using ProductsImport for file uploads.
-- [x] Step 2: Replace `updateOrCreate` with `Product::create()` in `importMapping()` method.
-
-- [x] Step 3: Clear routes cache: `php artisan route:clear`
-- [ ] Step 4: Test import with duplicate ref Excel → verify multiple records created.
-- [ ] Complete
+## [x] 1. Add `applyTolerantSearch()` helper method to ProductController
+## [x] 2. Update `index()` method searchValue logic  
+## [x] 3. Update `simpleIndex()` method searchValue logic
+## [x] 4. Update `export()` method searchValue logic
+## [x] 5. Add performance optimization comments
+## [x] 6. Test the implementation
+## [x] 7. Complete task
 
