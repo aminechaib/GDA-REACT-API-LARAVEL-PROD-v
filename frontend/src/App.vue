@@ -8,28 +8,32 @@
           </svg>
         </button>
         <h1>GESTION D'ARRIVAGE</h1>
-        <button class="import-btn glass-btn" @click="showImportModal = true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <!-- Import Button -->
+        <button class="import-btn glass-btn header-action-btn" @click="showImportModal = true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
           Import Excel
         </button>
 
         <div class="export-group">
-          <button class="export-btn glass-btn" @click="exportToExcel(exportMode)" :title="exportMode === 'filtered' ? 'Export current filtered view' : 'Export all products'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <!-- Export Button -->
+          <button class="export-btn glass-btn header-action-btn" @click="exportToExcel(exportMode)" :title="exportMode === 'filtered' ? 'Export current filtered view' : 'Export all products'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
             </svg>
             Export Excel
           </button>
 
           <div class="column-toggle-wrapper" style="position: relative;">
-            <button class="glass-btn" @click="showColumnMenu = !showColumnMenu">
+            <!-- Columns Button -->
+            <button class="glass-btn header-action-btn" @click="showColumnMenu = !showColumnMenu">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
               </svg>
               Columns
             </button>
+
 
             <div v-if="showColumnMenu" class="menu-overlay" @click="showColumnMenu = false"></div>
 
@@ -139,10 +143,17 @@
         to {{ Math.min(serverOptions.page * serverOptions.rowsPerPage, serverItemsLength) }}
         of {{ serverItemsLength }} entries
       </div>
-      <div class="page-controls">
+            <div class="page-controls">
+        <!-- First & Prev -->
+        <button class="btn-secondary page-btn" :disabled="serverOptions.page === 1" @click="serverOptions.page = 1">First</button>
         <button class="btn-secondary page-btn" :disabled="serverOptions.page === 1" @click="serverOptions.page--">Prev</button>
-        <span class="page-num">Page {{ serverOptions.page }}</span>
-        <button class="btn-secondary page-btn" :disabled="serverOptions.page * serverOptions.rowsPerPage >= serverItemsLength" @click="serverOptions.page++">Next</button>
+
+        <!-- Page Info -->
+        <span class="page-num">Page {{ serverOptions.page }} of {{ totalPages }}</span>
+
+        <!-- Next & Last -->
+        <button class="btn-secondary page-btn" :disabled="serverOptions.page >= totalPages" @click="serverOptions.page++">Next</button>
+        <button class="btn-secondary page-btn" :disabled="serverOptions.page >= totalPages" @click="serverOptions.page = totalPages">Last</button>
 
         <select v-model="serverOptions.rowsPerPage" class="glass-input rows-select">
           <option :value="10">10 / page</option>
@@ -151,6 +162,7 @@
           <option :value="300">300 / page</option>
         </select>
       </div>
+
     </div>
 
     <!-- Loading overlay -->
@@ -314,6 +326,10 @@ watch(() => serverOptions.value.page, () => loadFromServer());
 watch(() => serverOptions.value.rowsPerPage, () => {
   serverOptions.value.page = 1;
   loadFromServer();
+});
+
+const totalPages = computed(() => {
+  return Math.ceil(serverItemsLength.value / serverOptions.value.rowsPerPage) || 1;
 });
 
 const isDark = ref(false);
@@ -649,4 +665,15 @@ html, body {
   --ag-border-color: var(--border-light);
   --ag-row-border-color: var(--border-light);
 }
+.header-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 42px; /* Forces them all to be exactly the same height */
+  padding: 0 1.25rem;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
 </style>
