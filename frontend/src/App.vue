@@ -121,7 +121,7 @@
     </div>
 
     <!-- AG GRID TABLE -->
-    <div class="grid-wrapper" :class="isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'">
+        <div class="grid-wrapper" :class="isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'">
       <ag-grid-vue
         style="width: 100%; height: 100%;"
         :theme="'legacy'"
@@ -131,9 +131,11 @@
         :animateRows="true"
         @grid-ready="onGridReady"
         @sort-changed="onSortChanged"
+        @cell-clicked="onCellClicked"
       >
       </ag-grid-vue>
     </div>
+
 
 
     <!-- CUSTOM PAGINATION -->
@@ -205,25 +207,43 @@ const defaultColDef = {
   minWidth: 100,
 };
 
-// Notice the 'flex: 1' on Designation. This makes it auto-fill the empty space!
+// Add the Actions column to the end
 const allHeaders = ref([
-  { text: "ID", value: "id", width: 80, show: true },
+//   { text: "ID", value: "id", width: 80, show: true },
   { text: "Reference", value: "ref", show: true },
   { text: "Designation", value: "designation", flex: 1, show: true },
   { text: "Marque", value: "marque", show: true },
   { text: "Prix", value: "prix", show: true },
   { text: "Date", value: "date_display", width: 140, show: true },
   { text: "Fournisseur", value: "fournisseur", show: true },
+  { text: "Actions", value: "actions", width: 100, show: true, sortable: false } // <-- NEW
 ]);
 
 const activeColumnDefs = computed(() => {
-  return allHeaders.value.filter(h => h.show).map(h => ({
-    headerName: h.text,
-    field: h.value,
-    width: h.width,
-    flex: h.flex
-  }));
+  return allHeaders.value.filter(h => h.show).map(h => {
+    const col = {
+      headerName: h.text,
+      field: h.value,
+      width: h.width,
+      flex: h.flex,
+      sortable: h.sortable !== false, // Disable sorting for Actions
+    };
+
+    // Inject the Copy Button HTML into the Actions column
+    if (h.value === 'actions') {
+      col.cellRenderer = () => {
+        return `<button class="action-icon-btn" title="Copy Row">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>`;
+      };
+    }
+    return col;
+  });
 });
+
 
 const gridApi = ref(null);
 
@@ -397,6 +417,25 @@ const formatDate = (dateString) => {
     day: 'numeric',
     year: 'numeric'
   });
+};
+
+const onCellClicked = async (params) => {
+  // Check if the user clicked the 'actions' column
+  if (params.colDef.field === 'actions') {
+    const row = params.data;
+
+    // Format the text you want to copy
+    const textToCopy = `Ref: ${row.ref} | Produit: ${row.designation} | Marque: ${row.marque} | Prix: ${row.prix} DH | Fournisseur: ${row.fournisseur}`;
+
+    try {
+      // Copy to clipboard
+      await navigator.clipboard.writeText(textToCopy);
+      showToast('success', 'Copied!', 'Product details copied to clipboard.', 3000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      showToast('error', 'Error', 'Failed to copy to clipboard.');
+    }
+  }
 };
 
 const loadFromServer = async () => {
@@ -675,5 +714,32 @@ html, body {
   white-space: nowrap;
   box-sizing: border-box;
 }
+/* Action Button inside AG Grid */
+.action-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+.action-icon-btn:hover {
+  color: var(--primary-color);
+  background: rgba(29, 99, 140, 0.1);
+  transform: scale(1.05);
+}
+
+.dark .action-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
 
 </style>
