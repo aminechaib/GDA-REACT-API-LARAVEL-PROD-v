@@ -14,6 +14,7 @@
           </svg>
           Import Excel
         </button>
+
         <div class="export-group">
           <button class="export-btn glass-btn" @click="exportToExcel(exportMode)" :title="exportMode === 'filtered' ? 'Export current filtered view' : 'Export all products'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -22,9 +23,25 @@
             Export Excel
           </button>
 
+          <div class="column-toggle-wrapper" style="position: relative;">
+            <button class="glass-btn" @click="showColumnMenu = !showColumnMenu">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+              </svg>
+              Columns
+            </button>
+
+            <div v-if="showColumnMenu" class="menu-overlay" @click="showColumnMenu = false"></div>
+
+            <div v-if="showColumnMenu" class="column-menu glass-card">
+              <label v-for="(header, index) in allHeaders" :key="index" class="column-checkbox">
+                <input type="checkbox" v-model="header.show" />
+                {{ header.text }}
+              </label>
+            </div>
+          </div>
         </div>
 
-       
         <button class="theme-toggle" @click="toggleDark" :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
           <svg v-if="isDark" class="icon" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4.707 2.707a1 1 0 010 1.414L13.414 9a1 1 0 01-1.414 0L11 8.414l-1 1-2.293-2.293a1 1 0 011.414-1.414L10 7.586l2.293-2.293a1 1 0 011.414 0zM10 15a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm-5.657-4.707a1 1 0 011.414 0l1.293 1.293a1 1 0 01-1.414 1.414L4.343 12.414a1 1 0 010-1.414zM10 11a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1z" clip-rule="evenodd" />
@@ -38,7 +55,7 @@
         <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
         </svg>
-        <input type="text" id="search" v-model="searchValue" placeholder="Search products...">
+        <input type="text" id="search" v-model="searchValue" placeholder="Search products..." />
       </div>
     </header>
 
@@ -47,11 +64,11 @@
       <div class="filters-grid">
         <div class="filter-group">
           <label>Date From</label>
-          <input type="date" v-model="filters.dateFrom" class="glass-input">
+          <input type="date" v-model="filters.dateFrom" class="glass-input" />
         </div>
         <div class="filter-group">
           <label>Date To</label>
-          <input type="date" v-model="filters.dateTo" class="glass-input">
+          <input type="date" v-model="filters.dateTo" class="glass-input" />
         </div>
         <div class="filter-group">
           <label>Fournisseur</label>
@@ -62,11 +79,11 @@
         </div>
         <div class="filter-group">
           <label>Min Price</label>
-          <input type="number" v-model="filters.minPrice" placeholder="0" class="glass-input">
+          <input type="number" v-model="filters.minPrice" placeholder="0" class="glass-input" />
         </div>
         <div class="filter-group">
           <label>Max Price</label>
-          <input type="number" v-model="filters.maxPrice" placeholder="999999" class="glass-input">
+          <input type="number" v-model="filters.maxPrice" placeholder="999999" class="glass-input" />
         </div>
         <div class="filter-actions">
           <button class="btn-secondary" @click="clearFilters">Clear</button>
@@ -79,39 +96,62 @@
     <div class="quick-search-grid">
       <div class="search-group">
         <label>Reference</label>
-        <input v-model="searchRef" placeholder="Search by ref..." class="search-input">
+        <input v-model="searchRef" placeholder="Search by ref..." class="search-input" />
       </div>
       <div class="search-group">
         <label>Marque</label>
-        <input v-model="searchMarque" placeholder="Search by marque..." class="search-input">
+        <input v-model="searchMarque" placeholder="Search by marque..." class="search-input" />
       </div>
       <div class="search-group">
         <label>Date</label>
-        <input type="date" v-model="searchDate" class="search-input">
+        <input type="date" v-model="searchDate" class="search-input" />
       </div>
       <div class="search-group">
         <label>Fournisseur</label>
-        <input v-model="searchFournisseur" placeholder="Search by fournisseur..." class="search-input">
+        <input v-model="searchFournisseur" placeholder="Search by fournisseur..." class="search-input" />
       </div>
       <div class="search-group">
         <label>Produit</label>
-        <input v-model="searchDesignation" placeholder="Search by designation..." class="search-input">
+        <input v-model="searchDesignation" placeholder="Search by designation..." class="search-input" />
       </div>
     </div>
-    <EasyDataTable
-      :headers="headers"
-      :items="items"
-      :loading="loading"
-      :server-items-length="serverItemsLength"
-      v-model:server-options="serverOptions"
-      :rows-per-page-options="[10, 50, 100, 300, 1000]"
-      theme-color="#1d638c"
-      table-class-name="modern-table"
-      header-class-name="modern-header"
-      body-class-name="modern-body"
-      buttons-pagination
-      fixed-header
-    />
+
+    <!-- AG GRID TABLE -->
+    <div class="grid-wrapper" :class="isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'">
+      <ag-grid-vue
+        style="width: 100%; height: 100%;"
+        :theme="'legacy'"
+        :columnDefs="activeColumnDefs"
+        :rowData="items"
+        :defaultColDef="defaultColDef"
+        :animateRows="true"
+        @grid-ready="onGridReady"
+        @sort-changed="onSortChanged"
+      >
+      </ag-grid-vue>
+    </div>
+
+
+    <!-- CUSTOM PAGINATION -->
+    <div class="custom-pagination glass-card">
+      <div class="page-info">
+        Showing {{ serverItemsLength === 0 ? 0 : (serverOptions.page - 1) * serverOptions.rowsPerPage + 1 }}
+        to {{ Math.min(serverOptions.page * serverOptions.rowsPerPage, serverItemsLength) }}
+        of {{ serverItemsLength }} entries
+      </div>
+      <div class="page-controls">
+        <button class="btn-secondary page-btn" :disabled="serverOptions.page === 1" @click="serverOptions.page--">Prev</button>
+        <span class="page-num">Page {{ serverOptions.page }}</span>
+        <button class="btn-secondary page-btn" :disabled="serverOptions.page * serverOptions.rowsPerPage >= serverItemsLength" @click="serverOptions.page++">Next</button>
+
+        <select v-model="serverOptions.rowsPerPage" class="glass-input rows-select">
+          <option :value="10">10 / page</option>
+          <option :value="50">50 / page</option>
+          <option :value="100">100 / page</option>
+          <option :value="300">300 / page</option>
+        </select>
+      </div>
+    </div>
 
     <!-- Loading overlay -->
     <div v-if="loading" class="loading-overlay">
@@ -133,25 +173,75 @@
 </template>
 
 <script setup>
-// [script content - unchanged from previous]
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
 import ImportModal from './components/ImportModal.vue';
 import './assets/new-ui.css';
 import Toast from './components/Toast.vue';
-import EasyDataTable from 'vue3-easy-data-table';
-import 'vue3-easy-data-table/dist/style.css';
 import axios from 'axios';
 
+// AG Grid Imports
+import { AgGridVue } from 'ag-grid-vue3';
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
 
-const headers = [
-  { text: "ID", value: "id", sortable: true, width: 80 },
-  { text: "Reference", value: "ref", sortable: true },
-  { text: "Designation", value: "designation", sortable: true, width: 300 },
-  { text: "Marque", value: "marque", sortable: true },
-  { text: "Prix", value: "prix", sortable: true },
-  { text: "Date", value: "date_display", sortable: true, width: 140 },
-  { text: "Fournisseur", value: "fournisseur", sortable: true },
-];
+ModuleRegistry.registerModules([AllCommunityModule]);
+// AG Grid Configuration
+const defaultColDef = {
+  sortable: true,
+  resizable: true, // Smooth drag-to-resize enabled globally!
+  minWidth: 100,
+};
+
+// Notice the 'flex: 1' on Designation. This makes it auto-fill the empty space!
+const allHeaders = ref([
+  { text: "ID", value: "id", width: 80, show: true },
+  { text: "Reference", value: "ref", show: true },
+  { text: "Designation", value: "designation", flex: 1, show: true },
+  { text: "Marque", value: "marque", show: true },
+  { text: "Prix", value: "prix", show: true },
+  { text: "Date", value: "date_display", width: 140, show: true },
+  { text: "Fournisseur", value: "fournisseur", show: true },
+]);
+
+const activeColumnDefs = computed(() => {
+  return allHeaders.value.filter(h => h.show).map(h => ({
+    headerName: h.text,
+    field: h.value,
+    width: h.width,
+    flex: h.flex
+  }));
+});
+
+const gridApi = ref(null);
+
+const onGridReady = (params) => {
+  gridApi.value = params.api;
+  // Auto-size columns to fit the screen on load
+  params.api.sizeColumnsToFit();
+};
+
+const onSortChanged = () => {
+  // Get the current sort state from AG Grid
+  const sortState = gridApi.value.getColumnState().find(s => s.sort != null);
+  if (sortState) {
+    serverOptions.value.sortBy = sortState.colId;
+    serverOptions.value.sortType = sortState.sort;
+  } else {
+    serverOptions.value.sortBy = 'id';
+    serverOptions.value.sortType = 'asc';
+  }
+  loadFromServer();
+};
+
+const showColumnMenu = ref(false);
+
+// Shared debounce vars/functions
+let debounceTimer;
+const debounceHandler = (delay) => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => loadFromServer(), delay);
+};
 
 const items = ref([]);
 const loading = ref(true);
@@ -169,7 +259,6 @@ const recentImports = ref(0);
 const showFilters = ref(false);
 const exportMode = ref('filtered');
 
-// Filters
 const filters = ref({
   dateFrom: '',
   dateTo: '',
@@ -178,45 +267,24 @@ const filters = ref({
   maxPrice: ''
 });
 
-// Shared debounce vars/functions - declare before watches
-let debounceTimer;
-
-const debounceHandler = (delay) => {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => loadFromServer(), delay);
-};
-
-// Auto-reactivity for filters (500ms)
 watch(filters, () => debounceHandler(500), { deep: true });
 
 const fournisseurs = ref([]);
 const showMobileMenu = ref(false);
 const isMobile = ref(false);
 
-// Toast system
-const toast = ref({
-  show: false,
-  type: 'info',
-  title: '',
-  message: ''
-});
+const toast = ref({ show: false, type: 'info', title: '', message: '' });
 
 const showToast = (type, title, message, duration = 5000) => {
   toast.value = { show: true, type, title, message };
-  if (duration > 0) {
-    setTimeout(() => {
-      toast.value.show = false;
-    }, duration);
-  }
+  if (duration > 0) setTimeout(() => { toast.value.show = false; }, duration);
 };
 
-const hideToast = () => {
-  toast.value.show = false;
-};
+const hideToast = () => { toast.value.show = false; };
 
 const loadFournisseurs = async () => {
   try {
-    const { data } = await axios.get('http://127.0.0.1:8000/api/fournisseurs');
+    const { data } = await axios.get('https://api.gda.sarlpro.com/api/fournisseurs' );
     fournisseurs.value = Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Failed to load fournisseurs', error);
@@ -229,13 +297,7 @@ const applyFilters = () => {
 };
 
 const clearFilters = () => {
-  filters.value = {
-    dateFrom: '',
-    dateTo: '',
-    fournisseur: '',
-    minPrice: '',
-    maxPrice: ''
-  };
+  filters.value = { dateFrom: '', dateTo: '', fournisseur: '', minPrice: '', maxPrice: '' };
   loadFromServer();
   showToast('info', 'Filters Cleared', 'All filters have been reset');
 };
@@ -247,6 +309,13 @@ const serverOptions = ref({
   sortType: 'asc',
 });
 
+// Watch pagination changes to trigger API calls
+watch(() => serverOptions.value.page, () => loadFromServer());
+watch(() => serverOptions.value.rowsPerPage, () => {
+  serverOptions.value.page = 1;
+  loadFromServer();
+});
+
 const isDark = ref(false);
 
 const toggleDark = () => {
@@ -255,66 +324,39 @@ const toggleDark = () => {
   document.documentElement.classList.toggle('dark');
 };
 
-// In App.vue script setup
-
 const exportToExcel = () => {
   try {
     showToast('info', `Exporting ${exportMode.value === 'filtered' ? 'filtered' : 'all'} products...`, 'Server is generating Excel file. Download will start shortly.');
-
     let params = {};
-
     if (exportMode.value === 'filtered') {
-      // Build params from current filtered state
       params = {
-        ref: searchRef.value,
-        marque: searchMarque.value,
-        date: searchDate.value,
-        fournisseur: searchFournisseur.value,
-        designation: searchDesignation.value,
-        searchValue: searchValue.value,
-        dateFrom: filters.value.dateFrom,
-        dateTo: filters.value.dateTo,
-        // Use the correct key for the advanced filter supplier
+        ref: searchRef.value, marque: searchMarque.value, date: searchDate.value,
         fournisseur: filters.value.fournisseur || searchFournisseur.value,
-        minPrice: filters.value.minPrice,
-        maxPrice: filters.value.maxPrice,
+        designation: searchDesignation.value, searchValue: searchValue.value,
+        dateFrom: filters.value.dateFrom, dateTo: filters.value.dateTo,
+        minPrice: filters.value.minPrice, maxPrice: filters.value.maxPrice,
       };
     }
-    // For 'all' mode, params remains an empty object.
-
-    // Filter out empty parameters to create a clean URL
     const filteredParams = Object.entries(params)
       .filter(([_, value]) => value !== '' && value !== null)
       .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 
-    // Construct the URL with query parameters
     const queryString = new URLSearchParams(filteredParams).toString();
-    const url = `http://127.0.0.1:8000/api/products/export?${queryString}`;
+    const url = `https://api.gda.sarlpro.com/api/products/export?${queryString}`;
 
-    // Use a hidden anchor tag to trigger the download
     const link = document.createElement('a' );
     link.href = url;
-    // The 'download' attribute is not strictly necessary but good practice
     const modeText = exportMode.value === 'filtered' ? 'filtered' : 'all';
     link.setAttribute('download', `products_${modeText}_export_${new Date().toISOString().split('T')[0]}.xlsx`);
     link.style.display = 'none';
     document.body.appendChild(link);
-
-    link.click(); // This directly triggers the browser's download mechanism
-
+    link.click();
     document.body.removeChild(link);
-
-    // Note: We can't easily show a "success" toast here because we are no longer
-    // "awaiting" a response in JavaScript. The browser handles it in a separate process.
-    // The initial "Exporting..." message is the best we can do.
-
   } catch (error) {
-    // This catch block will now only catch errors from building the URL, not the download itself.
     console.error('Failed to initiate export:', error);
     showToast('error', 'Export Failed', 'Could not create the download link. Check console.');
   }
 };
-
 
 onMounted(() => {
   const saved = localStorage.getItem('darkMode');
@@ -363,16 +405,13 @@ const loadFromServer = async () => {
     if (filters.value.minPrice) params.minPrice = filters.value.minPrice;
     if (filters.value.maxPrice) params.maxPrice = filters.value.maxPrice;
 
-    const response = await axios.get('http://127.0.0.1:8000/api/products', { params });
+    const response = await axios.get('https://api.gda.sarlpro.com/api/products', { params } );
     items.value = response.data.rows.map(item => ({
       ...item,
       date_display: formatDate(item.date)
     }));
     serverItemsLength.value = response.data.total;
 
-    serverItemsLength.value = response.data.total;
-
-    // Stats from current page (for dashboard, use full query if needed)
     const pageItems = response.data.rows;
     totalValue.value = pageItems.reduce((sum, item) => sum + (parseFloat(item.prix) || 0), 0);
     uniqueFournisseurs.value = new Set(pageItems.map(item => item.fournisseur).filter(Boolean)).size;
@@ -391,8 +430,11 @@ const loadFromServer = async () => {
   loading.value = false;
 };
 
-// Quick search + pagination (300ms)
-watch([serverOptions, searchRef, searchMarque, searchDate, searchFournisseur, searchDesignation, searchValue], () => debounceHandler(300), { deep: true });
+// Quick search debounce
+watch([searchRef, searchMarque, searchDate, searchFournisseur, searchDesignation, searchValue], () => {
+  serverOptions.value.page = 1; // Reset to page 1 on search
+  debounceHandler(300);
+}, { deep: true });
 
 loadFromServer();
 </script>
@@ -471,66 +513,60 @@ html, body {
   border-color: rgba(255,255,255,0.2);
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+/* AG Grid Wrapper Styles */
+.grid-wrapper {
+  flex-grow: 1;
+  min-height: 400px;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  background: var(--bg-card);
 }
 
-.stat-card {
+/* Custom Pagination Styles */
+.custom-pagination {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
+  padding: 1rem 1.5rem;
   border-radius: 12px;
   background: var(--bg-card);
   box-shadow: var(--shadow);
-  transition: transform 0.3s ease;
+  margin-top: auto;
+  flex-shrink: 0;
 }
 
-.stat-card:hover {
-  transform: translateY(-2px);
+.page-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
 }
 
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+.page-controls {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: white;
+  gap: 1rem;
 }
 
-.stat-icon svg {
-  width: 24px;
-  height: 24px;
+.page-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
 }
 
-.stat-content h3 {
-  margin: 0;
-  font-size: 2rem;
-  font-weight: 700;
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-num {
+  font-weight: 600;
   color: var(--text-primary);
 }
 
-.stat-content p {
-  margin: 0.25rem 0 0 0;
+.rows-select {
+  padding: 0.5rem;
+  width: auto;
   font-size: 0.875rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.modern-table {
-  flex-grow: 1;
-  border: none;
-  border-radius: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  height: 100%;
 }
 
 .loading-overlay {
@@ -558,5 +594,59 @@ html, body {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+.column-menu {
+  position: absolute;
+  top: 120%;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 160px;
+}
+
+.column-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.column-toggle-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99;
+  cursor: default;
+}
+
+/* Fix AG Grid dark mode borders to match your theme */
+.ag-theme-alpine-dark {
+  --ag-background-color: var(--bg-card);
+  --ag-header-background-color: #1e293b;
+  --ag-border-color: var(--border-light);
+  --ag-row-border-color: var(--border-light);
+}
+.ag-theme-alpine {
+  --ag-background-color: var(--bg-card);
+  --ag-header-background-color: #f8f9ff;
+  --ag-border-color: var(--border-light);
+  --ag-row-border-color: var(--border-light);
 }
 </style>
