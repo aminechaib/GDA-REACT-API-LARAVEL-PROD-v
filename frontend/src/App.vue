@@ -1,5 +1,33 @@
 <template>
-  <div id="app-container">
+  <!-- ========================================== -->
+  <!-- LOGIN SCREEN (Shows if not authenticated)    -->
+  <!-- ========================================== -->
+  <div v-if="!isAuthenticated" class="login-wrapper" :class="{ 'dark': isDark }">
+    <div class="login-box glass-card">
+      <h2 style="text-align: center; margin-bottom: 1.5rem; color: var(--text-primary);">Login to Dashboard</h2>
+      <form @submit.prevent="handleLogin">
+        <div class="filter-group" style="margin-bottom: 1rem;">
+          <label>Email</label>
+          <input type="email" v-model="loginForm.email" class="glass-input" required style="width: 100%; box-sizing: border-box;" />
+        </div>
+        <div class="filter-group" style="margin-bottom: 1.5rem;">
+          <label>Password</label>
+          <input type="password" v-model="loginForm.password" class="glass-input" required style="width: 100%; box-sizing: border-box;" />
+        </div>
+        <div v-if="loginError" style="color: #ff4d4f; margin-bottom: 1rem; font-size: 0.9rem; text-align: center;">
+          {{ loginError }}
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;" :disabled="isLoggingIn">
+          {{ isLoggingIn ? 'Logging in...' : 'Login' }}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MAIN DASHBOARD (Shows if authenticated)      -->
+  <!-- ========================================== -->
+  <div v-else id="app-container">
     <header class="app-header">
       <div class="header-left">
         <button class="mobile-menu-btn" @click="showMobileMenu = !showMobileMenu" v-if="isMobile">
@@ -8,7 +36,8 @@
           </svg>
         </button>
         <h1>GESTION D'ARRIVAGE</h1>
-               <!-- Import Button -->
+
+        <!-- Import Button -->
         <button class="import-btn glass-btn header-action-btn" @click="showImportModal = true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -34,7 +63,6 @@
               Columns
             </button>
 
-
             <div v-if="showColumnMenu" class="menu-overlay" @click="showColumnMenu = false"></div>
 
             <div v-if="showColumnMenu" class="column-menu glass-card">
@@ -53,6 +81,14 @@
           <svg v-else class="icon" viewBox="0 0 20 20" fill="currentColor">
             <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
           </svg>
+        </button>
+
+        <!-- NEW: Logout Button -->
+        <button class="glass-btn header-action-btn" @click="handleLogout" style="color: #ff4d4f; border-color: rgba(255,77,79,0.3);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+          </svg>
+          Logout
         </button>
       </div>
       <div class="search-wrapper">
@@ -121,7 +157,7 @@
     </div>
 
     <!-- AG GRID TABLE -->
-        <div class="grid-wrapper" :class="isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'">
+    <div class="grid-wrapper" :class="isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'">
       <ag-grid-vue
         style="width: 100%; height: 100%;"
         :theme="'legacy'"
@@ -136,8 +172,6 @@
       </ag-grid-vue>
     </div>
 
-
-
     <!-- CUSTOM PAGINATION -->
     <div class="custom-pagination glass-card">
       <div class="page-info">
@@ -145,18 +179,12 @@
         to {{ Math.min(serverOptions.page * serverOptions.rowsPerPage, serverItemsLength) }}
         of {{ serverItemsLength }} entries
       </div>
-            <div class="page-controls">
-        <!-- First & Prev -->
+      <div class="page-controls">
         <button class="btn-secondary page-btn" :disabled="serverOptions.page === 1" @click="serverOptions.page = 1">First</button>
         <button class="btn-secondary page-btn" :disabled="serverOptions.page === 1" @click="serverOptions.page--">Prev</button>
-
-        <!-- Page Info -->
         <span class="page-num">Page {{ serverOptions.page }} of {{ totalPages }}</span>
-
-        <!-- Next & Last -->
         <button class="btn-secondary page-btn" :disabled="serverOptions.page >= totalPages" @click="serverOptions.page++">Next</button>
         <button class="btn-secondary page-btn" :disabled="serverOptions.page >= totalPages" @click="serverOptions.page = totalPages">Last</button>
-
         <select v-model="serverOptions.rowsPerPage" class="glass-input rows-select">
           <option :value="10">10 / page</option>
           <option :value="50">50 / page</option>
@@ -164,7 +192,6 @@
           <option :value="300">300 / page</option>
         </select>
       </div>
-
     </div>
 
     <!-- Loading overlay -->
@@ -200,23 +227,73 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
-// AG Grid Configuration
+
+// ==========================================
+// AUTHENTICATION LOGIC
+// ==========================================
+const isAuthenticated = ref(false);
+const loginForm = ref({ email: 'admin@example.com', password: 'password123' });
+const loginError = ref('');
+const isLoggingIn = ref(false);
+
+// Check if token exists on load
+const token = localStorage.getItem('auth_token');
+if (token) {
+  isAuthenticated.value = true;
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
+
+const handleLogin = async () => {
+  isLoggingIn.value = true;
+  loginError.value = '';
+  try {
+    const response = await axios.post('http://127.0.0.1:8000/api/login', loginForm.value );
+    const newToken = response.data.token;
+
+    localStorage.setItem('auth_token', newToken);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+    isAuthenticated.value = true;
+
+    // Load data now that we are logged in
+    loadFournisseurs();
+    loadFromServer();
+  } catch (error) {
+    loginError.value = 'Invalid email or password.';
+    console.error(error);
+  } finally {
+    isLoggingIn.value = false;
+  }
+};
+
+const handleLogout = async () => {
+  try {
+    await axios.post('http://127.0.0.1:8000/api/logout' );
+  } catch (error) {
+    console.error('Logout error', error);
+  } finally {
+    localStorage.removeItem('auth_token');
+    delete axios.defaults.headers.common['Authorization'];
+    isAuthenticated.value = false;
+  }
+};
+
+// ==========================================
+// DASHBOARD LOGIC (Your original code)
+// ==========================================
 const defaultColDef = {
   sortable: true,
-  resizable: true, // Smooth drag-to-resize enabled globally!
+  resizable: true,
   minWidth: 100,
 };
 
-// Add the Actions column to the end
 const allHeaders = ref([
-//   { text: "ID", value: "id", width: 80, show: true },
   { text: "Reference", value: "ref", show: true },
   { text: "Designation", value: "designation", flex: 1, show: true },
   { text: "Marque", value: "marque", show: true },
   { text: "Prix", value: "prix", show: true },
   { text: "Date", value: "date_display", width: 140, show: true },
   { text: "Fournisseur", value: "fournisseur", show: true },
-  { text: "Actions", value: "actions", width: 100, show: true, sortable: false } // <-- NEW
+  { text: "Actions", value: "actions", width: 100, show: true, sortable: false }
 ]);
 
 const activeColumnDefs = computed(() => {
@@ -226,10 +303,8 @@ const activeColumnDefs = computed(() => {
       field: h.value,
       width: h.width,
       flex: h.flex,
-      sortable: h.sortable !== false, // Disable sorting for Actions
+      sortable: h.sortable !== false,
     };
-
-    // Inject the Copy Button HTML into the Actions column
     if (h.value === 'actions') {
       col.cellRenderer = () => {
         return `<button class="action-icon-btn" title="Copy Row">
@@ -244,17 +319,14 @@ const activeColumnDefs = computed(() => {
   });
 });
 
-
 const gridApi = ref(null);
 
 const onGridReady = (params) => {
   gridApi.value = params.api;
-  // Auto-size columns to fit the screen on load
   params.api.sizeColumnsToFit();
 };
 
 const onSortChanged = () => {
-  // Get the current sort state from AG Grid
   const sortState = gridApi.value.getColumnState().find(s => s.sort != null);
   if (sortState) {
     serverOptions.value.sortBy = sortState.colId;
@@ -268,7 +340,6 @@ const onSortChanged = () => {
 
 const showColumnMenu = ref(false);
 
-// Shared debounce vars/functions
 let debounceTimer;
 const debounceHandler = (delay) => {
   clearTimeout(debounceTimer);
@@ -276,7 +347,7 @@ const debounceHandler = (delay) => {
 };
 
 const items = ref([]);
-const loading = ref(true);
+const loading = ref(false); // Changed to false initially so it doesn't spin on login screen
 const serverItemsLength = ref(0);
 const searchRef = ref('');
 const searchMarque = ref('');
@@ -292,11 +363,7 @@ const showFilters = ref(false);
 const exportMode = ref('filtered');
 
 const filters = ref({
-  dateFrom: '',
-  dateTo: '',
-  fournisseur: '',
-  minPrice: '',
-  maxPrice: ''
+  dateFrom: '', dateTo: '', fournisseur: '', minPrice: '', maxPrice: ''
 });
 
 watch(filters, () => debounceHandler(500), { deep: true });
@@ -315,8 +382,9 @@ const showToast = (type, title, message, duration = 5000) => {
 const hideToast = () => { toast.value.show = false; };
 
 const loadFournisseurs = async () => {
+  if (!isAuthenticated.value) return;
   try {
-    const { data } = await axios.get('https://api.gda.sarlpro.com/api/fournisseurs' );
+    const { data } = await axios.get('http://127.0.0.1:8000/api/fournisseurs' );
     fournisseurs.value = Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Failed to load fournisseurs', error);
@@ -335,13 +403,9 @@ const clearFilters = () => {
 };
 
 const serverOptions = ref({
-  page: 1,
-  rowsPerPage: 100,
-  sortBy: 'id',
-  sortType: 'asc',
+  page: 1, rowsPerPage: 100, sortBy: 'id', sortType: 'asc',
 });
 
-// Watch pagination changes to trigger API calls
 watch(() => serverOptions.value.page, () => loadFromServer());
 watch(() => serverOptions.value.rowsPerPage, () => {
   serverOptions.value.page = 1;
@@ -360,9 +424,12 @@ const toggleDark = () => {
   document.documentElement.classList.toggle('dark');
 };
 
-const exportToExcel = () => {
+// ==========================================
+// SECURE EXPORT LOGIC
+// ==========================================
+const exportToExcel = async () => {
   try {
-    showToast('info', `Exporting ${exportMode.value === 'filtered' ? 'filtered' : 'all'} products...`, 'Server is generating Excel file. Download will start shortly.');
+    showToast('info', `Exporting...`, 'Server is generating Excel file. Download will start shortly.');
     let params = {};
     if (exportMode.value === 'filtered') {
       params = {
@@ -377,20 +444,25 @@ const exportToExcel = () => {
       .filter(([_, value]) => value !== '' && value !== null)
       .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 
-    const queryString = new URLSearchParams(filteredParams).toString();
-    const url = `https://api.gda.sarlpro.com/api/products/export?${queryString}`;
+    // Use Axios to securely download the file with the Bearer token
+    const response = await axios.get('http://127.0.0.1:8000/api/products/export', {
+      params: filteredParams,
+      responseType: 'blob' // CRITICAL for downloading files
+    } );
 
-    const link = document.createElement('a' );
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link =
+    document.createElement('a');
     link.href = url;
     const modeText = exportMode.value === 'filtered' ? 'filtered' : 'all';
     link.setAttribute('download', `products_${modeText}_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-    link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    window.URL.revokeObjectURL(url); // Clean up memory
   } catch (error) {
     console.error('Failed to initiate export:', error);
-    showToast('error', 'Export Failed', 'Could not create the download link. Check console.');
+    showToast('error', 'Export Failed', 'Could not download the file. Check console.');
   }
 };
 
@@ -400,7 +472,12 @@ onMounted(() => {
   if (isDark.value) {
     document.documentElement.classList.add('dark');
   }
-  loadFournisseurs();
+
+  // Only load data if we are already logged in
+  if (isAuthenticated.value) {
+    loadFournisseurs();
+    loadFromServer();
+  }
 
   const checkMobile = () => {
     isMobile.value = window.innerWidth < 768;
@@ -420,15 +497,11 @@ const formatDate = (dateString) => {
 };
 
 const onCellClicked = async (params) => {
-  // Check if the user clicked the 'actions' column
   if (params.colDef.field === 'actions') {
     const row = params.data;
-
-    // Format the text you want to copy
     const textToCopy = `Ref: ${row.ref} | Produit: ${row.designation} | Marque: ${row.marque} | Prix: ${row.prix} DH | Fournisseur: ${row.fournisseur}`;
 
     try {
-      // Copy to clipboard
       await navigator.clipboard.writeText(textToCopy);
       showToast('success', 'Copied!', 'Product details copied to clipboard.', 3000);
     } catch (err) {
@@ -439,6 +512,8 @@ const onCellClicked = async (params) => {
 };
 
 const loadFromServer = async () => {
+  if (!isAuthenticated.value) return; // Don't fetch if not logged in
+
   loading.value = true;
   try {
     const params = {
@@ -460,7 +535,7 @@ const loadFromServer = async () => {
     if (filters.value.minPrice) params.minPrice = filters.value.minPrice;
     if (filters.value.maxPrice) params.maxPrice = filters.value.maxPrice;
 
-    const response = await axios.get('https://api.gda.sarlpro.com/api/products', { params } );
+    const response = await axios.get('http://127.0.0.1:8000/api/products', { params }  );
     items.value = response.data.rows.map(item => ({
       ...item,
       date_display: formatDate(item.date)
@@ -480,7 +555,12 @@ const loadFromServer = async () => {
 
   } catch (error) {
     console.error("Failed to fetch data:", error);
-    alert("Failed to load data from the server. Check console for details.");
+    // If the token expired or is invalid, log the user out automatically
+    if (error.response && error.response.status === 401) {
+      handleLogout();
+    } else {
+      alert("Failed to load data from the server. Check console for details.");
+    }
   }
   loading.value = false;
 };
@@ -491,10 +571,33 @@ watch([searchRef, searchMarque, searchDate, searchFournisseur, searchDesignation
   debounceHandler(300);
 }, { deep: true });
 
-loadFromServer();
 </script>
 
 <style>
+/* ========================================== */
+/* NEW LOGIN STYLES                           */
+/* ========================================== */
+.login-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--bg-light);
+  transition: background-color 0.3s;
+}
+
+.login-box {
+  width: 100%;
+  max-width: 400px;
+  padding: 2.5rem;
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+}
+
+/* ========================================== */
+/* YOUR ORIGINAL STYLES                       */
+/* ========================================== */
 :root {
   --primary-color: #1d638c;
   --primary-dark: #16547a;
@@ -709,7 +812,7 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  height: 42px; /* Forces them all to be exactly the same height */
+  height: 42px;
   padding: 0 1.25rem;
   white-space: nowrap;
   box-sizing: border-box;
@@ -740,6 +843,4 @@ html, body {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
-
-
 </style>
