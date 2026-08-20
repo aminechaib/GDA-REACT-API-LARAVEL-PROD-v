@@ -29,6 +29,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Products
     Route::apiResource('products', ProductController::class)->only(['index']);
+    Route::put('products/{id}', [ProductController::class, 'update']);
+    Route::delete('products/{id}', [ProductController::class, 'destroy']);
+    Route::post('products/bulk-delete', [ProductController::class, 'bulkDestroy']);
     Route::post('products/import', [ProductController::class, 'import']);
     Route::post('products/import-mapping', [ProductController::class, 'importMapping']);
     Route::get('products/export', [ProductController::class, 'export']);

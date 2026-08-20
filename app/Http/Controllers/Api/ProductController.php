@@ -38,7 +38,7 @@ class ProductController extends Controller
             $query->where('marque', 'LIKE', '%' . $request->input('marque') . '%');
         }
         if ($request->filled('date')) {
-            $query->whereDate('date', $request->input('date'));
+            $this->applyDateFilter($query, $request->input('date'));
         }
         if ($request->filled('fournisseur')) {
             $query->where('fournisseur', 'LIKE', '%' . $request->input('fournisseur') . '%');
@@ -58,9 +58,6 @@ class ProductController extends Controller
         }
         if ($request->filled('dateTo')) {
             $query->whereDate('date', '<=', $request->input('dateTo'));
-        }
-        if ($request->filled('fournisseur') && $request->input('fournisseur') !== 'All Suppliers') {
-            $query->where('fournisseur', 'LIKE', '%' . $request->input('fournisseur') . '%');
         }
         if ($request->filled('minPrice')) {
             $query->where('prix', '>=', floatval($request->input('minPrice')));
@@ -230,7 +227,7 @@ class ProductController extends Controller
             $query->where('marque', 'LIKE', '%' . $request->input('marque') . '%');
         }
         if ($request->filled('date')) {
-            $query->whereDate('date', $request->input('date'));
+            $this->applyDateFilter($query, $request->input('date'));
         }
         if ($request->filled('fournisseur')) {
             $query->where('fournisseur', 'LIKE', '%' . $request->input('fournisseur') . '%');
@@ -251,9 +248,6 @@ class ProductController extends Controller
         if ($request->filled('dateTo')) {
             $query->whereDate('date', '<=', $request->input('dateTo'));
         }
-        if ($request->filled('fournisseur') && $request->input('fournisseur') !== 'All Suppliers') {
-            $query->where('fournisseur', 'LIKE', '%' . $request->input('fournisseur') . '%');
-        }
         if ($request->filled('minPrice')) {
             $query->where('prix', '>=', floatval($request->input('minPrice')));
         }
@@ -270,6 +264,71 @@ class ProductController extends Controller
     }
 
     /**
+     * Update a product.
+     */
+    public function update(Request $request, $id)
+    {
+        $product = Product::findOrFail($id);
+
+        $validated = $request->validate([
+            'ref' => 'nullable|string|max:255',
+            'designation' => 'nullable|string|max:1000',
+            'marque' => 'nullable|string|max:255',
+            'prix' => 'nullable|numeric|min:0',
+            'fournisseur' => 'nullable|string|max:255',
+            'date' => 'nullable|date',
+        ]);
+
+        $product->update($validated);
+
+        return response()->json($product);
+    }
+
+    /**
+     * Delete a single product.
+     */
+    public function destroy($id)
+    {
+        $product = Product::findOrFail($id);
+        $product->delete();
+
+        return response()->json(['message' => 'Product deleted.']);
+    }
+
+    /**
+     * Bulk delete products by IDs.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:products,id',
+        ]);
+
+        Product::whereIn('id', $request->ids)->delete();
+
+        return response()->json(['message' => count($request->ids) . ' products deleted.']);
+    }
+
+    /**
+     * Apply flexible date filter.
+     * Supports: "2026" (year only), "2026-03" (year-month), or "2026-03-15" (full date).
+     */
+    private function applyDateFilter($query, string $dateInput): void
+    {
+        $dateInput = trim($dateInput);
+
+        if (preg_match('/^\d{4}$/', $dateInput)) {
+            $query->whereRaw('YEAR(date) = ?', [$dateInput]);
+        } elseif (preg_match('/^\d{4}-\d{2}$/', $dateInput)) {
+            $parts = explode('-', $dateInput);
+            $query->whereRaw('YEAR(date) = ? AND MONTH(date) = ?', [$parts[0], intval($parts[1])]);
+        } else {
+            $query->whereDate('date', $dateInput);
+        }
+    }
+
+    /**
      * Apply tolerant token-based search across multiple fields.
      *
      * Normalizes input (lowercase, strips special chars), splits into tokens,
@@ -277,15 +336,6 @@ class ProductController extends Controller
      * Order of tokens does not matter.
      *
      * Example: "plaq ar tigu" matches "PLAQUETTE FREIN AR TIGUAN"
-     *
-     * PERFORMANCE NOTE:
-     * For datasets >100k rows, consider adding a FULLTEXT index:
-     *   ALTER TABLE products ADD FULLTEXT INDEX ft_search(ref, designation, marque, fournisseur);
-     * Then switch this method to use MATCH ... AGAINST for much faster searches.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $searchValue
-     * @return void
      */
     private function applyTolerantSearch($query, string $searchValue): void
     {
