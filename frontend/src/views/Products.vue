@@ -517,7 +517,7 @@ const copySelectedRows = async () => {
   const lines = selectedRows.value.map(row => {
     return cols.map(field => {
       const val = row[field] ?? '';
-      return `${field}: ${val}`;
+      return `${val}`;
     }).join(' | ');
   });
 
