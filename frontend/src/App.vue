@@ -169,6 +169,7 @@
         @grid-ready="onGridReady"
         @sort-changed="onSortChanged"
         @cell-clicked="onCellClicked"
+        @cell-key-down="onCellKeyDown"
         @selection-changed="onSelectionChanged"
       >
       </ag-grid-vue>
@@ -252,6 +253,8 @@
           <option :value="50">50 / page</option>
           <option :value="100">100 / page</option>
           <option :value="300">300 / page</option>
+          <option :value="500">500 / page</option>
+          <option :value="1000">1000 / page</option>
         </select>
       </div>
     </div>
@@ -346,7 +349,7 @@ const handleLogin = async () => {
   isLoggingIn.value = true;
   loginError.value = '';
   try {
-    const response = await axios.post('http://127.0.0.1:8000/api/login', loginForm.value );
+    const response = await axios.post('https://api.gda.sarlpro.com/api/login', loginForm.value );
     const newToken = response.data.token;
 
     localStorage.setItem('auth_token', newToken);
@@ -366,7 +369,7 @@ const handleLogin = async () => {
 
 const handleLogout = async () => {
   try {
-    await axios.post('http://127.0.0.1:8000/api/logout' );
+    await axios.post('https://api.gda.sarlpro.com/api/logout' );
   } catch (error) {
     console.error('Logout error', error);
   } finally {
@@ -489,7 +492,7 @@ const hideToast = () => { toast.value.show = false; };
 const loadFournisseurs = async () => {
   if (!isAuthenticated.value) return;
   try {
-    const { data } = await axios.get('http://127.0.0.1:8000/api/fournisseurs' );
+    const { data } = await axios.get('https://api.gda.sarlpro.com/api/fournisseurs' );
     fournisseurs.value = Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Failed to load fournisseurs', error);
@@ -550,7 +553,7 @@ const exportToExcel = async () => {
       .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 
     // Use Axios to securely download the file with the Bearer token
-    const response = await axios.get('http://127.0.0.1:8000/api/products/export', {
+    const response = await axios.get('https://api.gda.sarlpro.com/api/products/export', {
       params: filteredParams,
       responseType: 'blob' // CRITICAL for downloading files
     } );
@@ -662,7 +665,7 @@ const deleteSelectedRows = async () => {
 
   const ids = selectedRows.value.map(r => r.id);
   try {
-    await axios.post('http://127.0.0.1:8000/api/products/bulk-delete', { ids });
+    await axios.post('https://api.gda.sarlpro.com/api/products/bulk-delete', { ids });
     showToast('success', 'Deleted', `${count} product(s) deleted.`);
     selectedRows.value = [];
     loadFromServer();
@@ -682,7 +685,6 @@ const deselectAll = () => {
 const onCellClicked = async (params) => {
   const target = params.event?.target?.closest('[data-action]');
   const action = target?.getAttribute('data-action');
-  const id = target?.getAttribute('data-id');
 
   if (action === 'copy') {
     const row = params.data;
@@ -699,11 +701,27 @@ const onCellClicked = async (params) => {
   }
 };
 
+const onCellKeyDown = async (params) => {
+  const event = params.event;
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c' && navigator.clipboard) {
+    const value = params.value ?? '';
+    if (value === '') return;
+    event.preventDefault();
+    try {
+      await navigator.clipboard.writeText(String(value));
+      showToast('success', 'Copied!', `"${value}" copied to clipboard.`, 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      showToast('error', 'Error', 'Failed to copy to clipboard.');
+    }
+  }
+};
+
 const saveProduct = async () => {
   if (!editingProduct.value) return;
   savingProduct.value = true;
   try {
-    await axios.put(`http://127.0.0.1:8000/api/products/${editingProduct.value.id}`, {
+    await axios.put(`https://api.gda.sarlpro.com/api/products/${editingProduct.value.id}`, {
       ref: editingProduct.value.ref,
       designation: editingProduct.value.designation,
       marque: editingProduct.value.marque,
@@ -746,7 +764,7 @@ const loadFromServer = async () => {
     if (filters.value.minPrice) params.minPrice = filters.value.minPrice;
     if (filters.value.maxPrice) params.maxPrice = filters.value.maxPrice;
 
-    const response = await axios.get('http://127.0.0.1:8000/api/products', { params }  );
+    const response = await axios.get('https://api.gda.sarlpro.com/api/products', { params }  );
     items.value = response.data.rows.map(item => ({
       ...item,
       date_display: formatDate(item.date)

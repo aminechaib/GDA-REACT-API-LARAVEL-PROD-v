@@ -134,6 +134,7 @@
         @grid-ready="onGridReady"
         @sort-changed="onSortChanged"
         @cell-clicked="onCellClicked"
+        @cell-key-down="onCellKeyDown"
         @selection-changed="onSelectionChanged"
       >
       </ag-grid-vue>
@@ -217,6 +218,8 @@
           <option :value="50">50 / page</option>
           <option :value="100">100 / page</option>
           <option :value="300">300 / page</option>
+          <option :value="500">500 / page</option>
+          <option :value="1000">1000 / page</option>
         </select>
       </div>
     </div>
@@ -570,6 +573,22 @@ const onCellClicked = async (params) => {
     }
   } else if (action === 'edit') {
     editingProduct.value = { ...params.data };
+  }
+};
+
+const onCellKeyDown = async (params) => {
+  const event = params.event;
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c' && navigator.clipboard) {
+    const value = params.value ?? '';
+    if (value === '') return;
+    event.preventDefault();
+    try {
+      await navigator.clipboard.writeText(String(value));
+      showToast('success', 'Copied!', `"${value}" copied to clipboard.`, 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      showToast('error', 'Error', 'Failed to copy to clipboard.');
+    }
   }
 };
 
