@@ -26,6 +26,10 @@
             Export Excel
           </button>
 
+          <button class="glass-btn header-action-btn" @click="showMultiSearchModal = true">
+            Multi-Search
+          </button>
+
           <div class="column-toggle-wrapper" style="position: relative;">
             <button class="glass-btn header-action-btn" @click="showColumnMenu = !showColumnMenu">
               Columns
@@ -232,6 +236,13 @@
     <!-- Import Modal -->
     <ImportModal v-if="showImportModal" :show-modal="showImportModal" @close="showImportModal = false" />
 
+    <!-- Multi-Search Export Modal -->
+    <MultiSearchExportModal
+      v-if="showMultiSearchModal"
+      @close="showMultiSearchModal = false"
+      @toast="onMultiSearchToast"
+    />
+
     <!-- Toast Notifications -->
     <Toast :show="toast.show" :type="toast.type" :title="toast.title" :message="toast.message" @close="hideToast" />
 
@@ -280,6 +291,7 @@ import { useRouter } from 'vue-router'; // <-- NEW
 import axios from 'axios';
 import ImportModal from '../components/ImportModal.vue'; // Updated path
 import Toast from '../components/Toast.vue'; // Updated path
+import MultiSearchExportModal from '../components/MultiSearchExportModal.vue';
 
 // AG Grid Imports
 import { AgGridVue } from 'ag-grid-vue3';
@@ -338,6 +350,7 @@ const searchFournisseur = ref('');
 const searchDesignation = ref('');
 const searchValue = ref('');
 const showImportModal = ref(false);
+const showMultiSearchModal = ref(false);
 const showFilters = ref(false);
 const exportMode = ref('filtered');
 const isDark = ref(false);
@@ -377,6 +390,10 @@ const showToast = (type, title, message, duration = 5000) => {
 };
 const hideToast = () => { toast.value.show = false; };
 
+const onMultiSearchToast = ({ type, title, message }) => {
+  showToast(type, title, message);
+};
+
 // --- NEW: Logout Function ---
 const handleLogout = async () => {
   try {
@@ -390,7 +407,7 @@ const handleLogout = async () => {
   }
 };
 
-// --- UPDATED: API Calls (Removed hardcoded http://127.0.0.1:8000/api ) ---
+// --- UPDATED: API Calls (Removed hardcoded https://api.gda.sarlpro.com/api ) ---
 const loadFournisseurs = async () => {
   try {
     const { data } = await axios.get('/fournisseurs'); // Uses global base URL

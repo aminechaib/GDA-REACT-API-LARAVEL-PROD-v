@@ -1,10 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\FournisseurController;
+use App\Http\Controllers\Api\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\FournisseurController;
 
 /*
 |--------------------------------------------------------------------------
@@ -13,6 +13,9 @@ use App\Http\Controllers\Api\FournisseurController;
 */
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/login', function () {
+    return response()->json(['message' => 'Unauthenticated.'], 401);
+})->name('login');
 
 /*
 |--------------------------------------------------------------------------
@@ -35,6 +38,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('products/import', [ProductController::class, 'import']);
     Route::post('products/import-mapping', [ProductController::class, 'importMapping']);
     Route::get('products/export', [ProductController::class, 'export']);
+    Route::post('products/multi-search-export', [ProductController::class, 'multiSearchExport']);
+    Route::get('products/multi-search-export/{id}', [ProductController::class, 'multiSearchExportStatus']);
+    Route::get('products/multi-search-export/{id}/download', [ProductController::class, 'multiSearchExportDownload']);
     Route::post('products-simple', [ProductController::class, 'simpleIndex']);
 
     // Fournisseurs

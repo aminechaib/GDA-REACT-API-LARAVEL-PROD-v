@@ -54,6 +54,14 @@
             Export Excel
           </button>
 
+          <button class="glass-btn header-action-btn" @click="openMultiSearchModal">
+            Multi-Search
+            <span v-if="exportIsRunning" class="multi-search-badge running">
+              {{ exportState.keywordIndex }}/{{ exportState.keywordCount }} · {{ formatCount(exportState.matchedRows) }}
+            </span>
+            <span v-else-if="exportIsDone" class="multi-search-badge done">Done</span>
+          </button>
+
           <div class="column-toggle-wrapper" style="position: relative;">
             <!-- Columns Button -->
             <button class="glass-btn header-action-btn" @click="showColumnMenu = !showColumnMenu">
@@ -267,6 +275,12 @@
     <!-- Import Modal -->
     <ImportModal v-if="showImportModal" :show-modal="showImportModal" @close="showImportModal = false" />
 
+    <MultiSearchExportModal
+      v-if="showMultiSearchModal"
+      @close="showMultiSearchModal = false"
+      @toast="onMultiSearchToast"
+    />
+
     <!-- Toast Notifications -->
     <Toast
       :show="toast.show"
@@ -318,6 +332,8 @@
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
 import ImportModal from './components/ImportModal.vue';
+import MultiSearchExportModal from './components/MultiSearchExportModal.vue';
+import exportState, { getActiveExportId, resumeMonitoring } from './stores/exportMonitor';
 import './assets/new-ui.css';
 import Toast from './components/Toast.vue';
 import axios from 'axios';
@@ -349,6 +365,7 @@ const handleLogin = async () => {
   isLoggingIn.value = true;
   loginError.value = '';
   try {
+    // const response = await axios.post('https://api.gda.sarlpro.com/api/login', loginForm.value );
     const response = await axios.post('https://api.gda.sarlpro.com/api/login', loginForm.value );
     const newToken = response.data.token;
 
@@ -464,6 +481,22 @@ const searchFournisseur = ref('');
 const searchDesignation = ref('');
 const searchValue = ref('');
 const showImportModal = ref(false);
+const showMultiSearchModal = ref(false);
+
+const exportIsRunning = computed(() => {
+  return exportState.exportId
+    && (exportState.status === 'pending' || exportState.status === 'processing');
+});
+const exportIsDone = computed(() => {
+  return exportState.exportId
+    && (exportState.status === 'completed' || exportState.status === 'failed');
+});
+
+const openMultiSearchModal = () => {
+  showMultiSearchModal.value = true;
+};
+
+const formatCount = (n) => (n ?? 0).toLocaleString();
 const totalValue = ref(0);
 const uniqueFournisseurs = ref(0);
 const recentImports = ref(0);
@@ -485,6 +518,10 @@ const toast = ref({ show: false, type: 'info', title: '', message: '' });
 const showToast = (type, title, message, duration = 5000) => {
   toast.value = { show: true, type, title, message };
   if (duration > 0) setTimeout(() => { toast.value.show = false; }, duration);
+};
+
+const onMultiSearchToast = ({ type, title, message }) => {
+  showToast(type, title, message);
 };
 
 const hideToast = () => { toast.value.show = false; };
@@ -579,6 +616,13 @@ onMounted(() => {
   isDark.value = saved === 'true';
   if (isDark.value) {
     document.documentElement.classList.add('dark');
+  }
+
+  // Resume live monitoring of a multi-search export started earlier,
+  // even if the page was reloaded/closed. Keeps the chip alive.
+  const activeExportId = getActiveExportId();
+  if (activeExportId) {
+    resumeMonitoring(activeExportId);
   }
 
   // Only load data if we are already logged in
@@ -1122,6 +1166,34 @@ html, body {
   padding: 0 1.25rem;
   white-space: nowrap;
   box-sizing: border-box;
+}
+
+.multi-search-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.multi-search-badge.running {
+  color: #fff;
+  background: rgba(37, 99, 235, 0.22);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  animation: pulseBadge 1.6s ease-in-out infinite;
+}
+
+.multi-search-badge.done {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+@keyframes pulseBadge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 /* Action Button inside AG Grid */
 .action-icon-btn {

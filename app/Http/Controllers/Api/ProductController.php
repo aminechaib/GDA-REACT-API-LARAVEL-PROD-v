@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Exports\ProductsExport;
+use App\Http\Controllers\Controller; // Make sure Product model is imported
 use App\Imports\ProductsImport;
-use App\Models\Product; // Make sure Product model is imported
+use App\Jobs\MultiSearchExportJob;
+use App\Models\Product;
+use App\Models\ProductExport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\ValidationException;
-use App\Exports\ProductsExport;
 
 class ProductController extends Controller
 {
@@ -32,19 +35,19 @@ class ProductController extends Controller
 
         // Quick search fields
         if ($request->filled('ref')) {
-            $query->where('ref', 'LIKE', '%' . $request->input('ref') . '%');
+            $query->where('ref', 'LIKE', '%'.$request->input('ref').'%');
         }
         if ($request->filled('marque')) {
-            $query->where('marque', 'LIKE', '%' . $request->input('marque') . '%');
+            $query->where('marque', 'LIKE', '%'.$request->input('marque').'%');
         }
         if ($request->filled('date')) {
             $this->applyDateFilter($query, $request->input('date'));
         }
         if ($request->filled('fournisseur')) {
-            $query->where('fournisseur', 'LIKE', '%' . $request->input('fournisseur') . '%');
+            $query->where('fournisseur', 'LIKE', '%'.$request->input('fournisseur').'%');
         }
         if ($request->filled('designation')) {
-            $query->where('designation', 'LIKE', '%' . $request->input('designation') . '%');
+            $query->where('designation', 'LIKE', '%'.$request->input('designation').'%');
         }
 
         // Global search (searchValue) — tolerant token-based matching
@@ -80,7 +83,6 @@ class ProductController extends Controller
         ]);
     }
 
-
     /**
      * Handles Excel import with column mapping from frontend.
      */
@@ -91,7 +93,7 @@ class ProductController extends Controller
             'mapping' => 'required|array',
             'fournisseur_id' => 'nullable|integer',
             'new_fournisseur' => 'nullable|string|max:255',
-            'date' => 'nullable|date'
+            'date' => 'nullable|date',
         ]);
 
         $data = $request->data;
@@ -102,7 +104,7 @@ class ProductController extends Controller
 
         // Get fournisseur name from ID (match controller logic)
         $fournisseurName = $newFournisseur;
-        if (!$fournisseurName && $fournisseurId) {
+        if (! $fournisseurName && $fournisseurId) {
             $allFournisseurs = Product::select('fournisseur as nom')
                 ->whereNotNull('fournisseur')
                 ->where('fournisseur', '!=', '')
@@ -127,7 +129,7 @@ class ProductController extends Controller
                 'date' => $date,
             ];
 
-            if (!empty($transformedRow['ref'])) {
+            if (! empty($transformedRow['ref'])) {
                 $transformedData[] = $transformedRow;
             }
         }
@@ -138,16 +140,17 @@ class ProductController extends Controller
             }
 
             return response()->json([
-                'message' => count($transformedData) . ' products imported/updated successfully!',
-                'imported' => count($transformedData)
+                'message' => count($transformedData).' products imported/updated successfully!',
+                'imported' => count($transformedData),
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Import failed',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
     public function simpleIndex(Request $request)
     {
         $page = $request->input('page', 1);
@@ -163,7 +166,7 @@ class ProductController extends Controller
         }
 
         // Global search (searchValue) — tolerant token-based matching
-        if ($request->has('searchValue') && !empty($request->input('searchValue'))) {
+        if ($request->has('searchValue') && ! empty($request->input('searchValue'))) {
             $this->applyTolerantSearch($query, $request->input('searchValue'));
         }
 
@@ -188,24 +191,26 @@ class ProductController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv|max:10000'
+            'file' => 'required|mimes:xlsx,xls,csv|max:10000',
         ]);
 
         try {
             Excel::import(new ProductsImport, $request->file('file'));
+
             return response()->json([
-                'message' => 'Excel import completed successfully!'
+                'message' => 'Excel import completed successfully!',
             ], 200);
-        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+        } catch (ValidationException $e) {
             $failures = $e->failures();
+
             return response()->json([
                 'message' => 'Import completed with errors',
-                'errors' => $failures
+                'errors' => $failures,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Import failed',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -221,19 +226,19 @@ class ProductController extends Controller
 
         // Quick search fields (exact copy from index)
         if ($request->filled('ref')) {
-            $query->where('ref', 'LIKE', '%' . $request->input('ref') . '%');
+            $query->where('ref', 'LIKE', '%'.$request->input('ref').'%');
         }
         if ($request->filled('marque')) {
-            $query->where('marque', 'LIKE', '%' . $request->input('marque') . '%');
+            $query->where('marque', 'LIKE', '%'.$request->input('marque').'%');
         }
         if ($request->filled('date')) {
             $this->applyDateFilter($query, $request->input('date'));
         }
         if ($request->filled('fournisseur')) {
-            $query->where('fournisseur', 'LIKE', '%' . $request->input('fournisseur') . '%');
+            $query->where('fournisseur', 'LIKE', '%'.$request->input('fournisseur').'%');
         }
         if ($request->filled('designation')) {
-            $query->where('designation', 'LIKE', '%' . $request->input('designation') . '%');
+            $query->where('designation', 'LIKE', '%'.$request->input('designation').'%');
         }
 
         // Global search (searchValue) — tolerant token-based matching
@@ -258,9 +263,82 @@ class ProductController extends Controller
         // Sort by ID asc for consistency
         $query->orderBy('id', 'asc');
 
-        $filename = 'products_export_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+        $filename = 'products_export_'.now()->format('Y-m-d_H-i-s').'.xlsx';
 
         return Excel::download(new ProductsExport($query), $filename);
+    }
+
+    /**
+     * Start a queued multi-keyword search export.
+     * Creates a ProductExport record and dispatches a background job
+     * so huge datasets don't time out the HTTP request.
+     */
+    public function multiSearchExport(Request $request)
+    {
+        $request->validate([
+            'keywords' => 'required|array|min:1|max:100',
+            'keywords.*' => 'required|string|min:1|max:255',
+            'columns' => 'required|array|min:1',
+            'columns.*' => 'required|in:id,ref,designation,marque,prix,date,fournisseur',
+            'max_results' => 'nullable|integer|min:1|max:100000',
+        ]);
+
+        $export = ProductExport::create([
+            'user_id' => $request->user()?->id,
+            'status' => 'pending',
+            'keyword_count' => count($request->keywords),
+            'max_results' => $request->max_results,
+        ]);
+
+        MultiSearchExportJob::dispatch($export->id, $request->keywords, $request->columns, $request->max_results);
+
+        return response()->json([
+            'export_id' => $export->id,
+            'status' => $export->status,
+        ], 202);
+    }
+
+    /**
+     * Poll the status of a multi-search export.
+     */
+    public function multiSearchExportStatus($id)
+    {
+        $export = ProductExport::findOrFail($id);
+
+        return response()->json([
+            'export_id' => $export->id,
+            'status' => $export->status,
+            'keyword_count' => $export->keyword_count,
+            'keyword_index' => $export->keyword_index,
+            'current_keyword' => $export->current_keyword,
+            'matched_rows' => $export->matched_rows,
+            'max_results' => $export->max_results,
+            'error' => $export->error,
+            'filename' => $export->filename,
+            'download_url' => $export->status === 'completed'
+                ? url('/api/products/multi-search-export/'.$export->id.'/download')
+                : null,
+        ]);
+    }
+
+    /**
+     * Download a completed multi-search export file.
+     */
+    public function multiSearchExportDownload($id)
+    {
+        $export = ProductExport::findOrFail($id);
+
+        if ($export->status !== 'completed' || ! $export->file_path) {
+            return response()->json(['message' => 'Export not ready.'], 404);
+        }
+
+        $path = Storage::disk('local')->path($export->file_path);
+
+        if (! Storage::disk('local')->exists($export->file_path)) {
+            return response()->json(['message' => 'Export file missing.'], 404);
+        }
+
+        return response()->download($path, $export->filename);
     }
 
     /**
@@ -307,7 +385,7 @@ class ProductController extends Controller
 
         Product::whereIn('id', $request->ids)->delete();
 
-        return response()->json(['message' => count($request->ids) . ' products deleted.']);
+        return response()->json(['message' => count($request->ids).' products deleted.']);
     }
 
     /**
@@ -357,7 +435,7 @@ class ProductController extends Controller
             foreach ($tokens as $token) {
                 $q->where(function ($subQ) use ($token, $searchableFields) {
                     foreach ($searchableFields as $field) {
-                        $subQ->orWhere($field, 'LIKE', '%' . $token . '%');
+                        $subQ->orWhere($field, 'LIKE', '%'.$token.'%');
                     }
                 });
             }
