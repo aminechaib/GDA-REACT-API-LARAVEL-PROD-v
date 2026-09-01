@@ -73,7 +73,7 @@
               class="glass-input keywords-input"
             ></textarea>
             <div class="helper-row">
-              <span class="helper">Each keyword gets its own sheet in the Excel file.</span>
+              <span class="helper">Each keyword gets its own results.</span>
               <span class="count">{{ keywordList.length }} / 100</span>
             </div>
           </div>

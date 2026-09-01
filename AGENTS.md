@@ -37,7 +37,7 @@ cd frontend && npm run build
 - `app/Http/Controllers/Api/` — API controllers (ProductController, AuthController, FournisseurController)
 - `app/Models/` — Eloquent models (Product, User, ProductExport)
 - `app/Exports/` + `app/Imports/` — Maatwebsite Excel export/import classes
-- `app/Jobs/MultiSearchExportJob.php` — queued multi-keyword export (writes file to `storage/app/`, updates `product_exports` status)
+- `app/Jobs/MultiSearchExportJob.php` — queued multi-keyword export (collects rows one sheet with a `Search Value` column per row, writes file via `Excel::store(..., 'local')` → `storage/app/private/`, updates `product_exports` status)
 - `routes/api.php` — All API routes, protected by `auth:sanctum` middleware
 - `frontend/src/App.vue` — **THE actual running app** (login + dashboard inline, hardcoded `https://api.gda.sarlpro.com/api/...` URLs). `frontend/src/views/Products.vue` is a SEPARATE dead view imported only via the router — edits there will NOT show up.
 - `frontend/src/components/` — ImportModal, Toast, MultiSearchExportModal

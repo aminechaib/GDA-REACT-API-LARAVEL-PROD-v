@@ -27,7 +27,7 @@ class MultiSearchExportJob implements ShouldQueue
 
     protected array $columns;
 
-    protected ?int $maxResults = null;
+    protected ?int $maxResults;
 
     public function __construct(int $exportId, array $keywords, array $columns, ?int $maxResults = null)
     {
@@ -44,7 +44,7 @@ class MultiSearchExportJob implements ShouldQueue
 
         try {
             $filename = 'multi_search_export_'.$export->id.'_'.now()->format('Y-m-d_H-i-s').'.xlsx';
-            $keywordQueries = [];
+            $rows = [];
             $totalMatched = 0;
 
             foreach ($this->keywords as $index => $keyword) {
@@ -53,19 +53,21 @@ class MultiSearchExportJob implements ShouldQueue
                     'current_keyword' => $keyword,
                 ]);
 
-                $countQuery = Product::query();
-                $this->applyTolerantSearch($countQuery, $keyword);
+                $query = Product::query();
+                $this->applyTolerantSearch($query, $keyword);
 
-                // Stream-count rows to report a live growing "matched rows"
-                // counter while the job runs. lazyById() paginates by primary
-                // key, which stays fast on very large tables (unlike OFFSET).
+                // Stream rows, keeping a live "matched rows" counter and
+                // building a single combined export (each row tagged with
+                // its search keyword) capped per keyword if requested.
                 $keywordMatched = 0;
-                foreach ($countQuery->lazyById(500) as $row) {
+                foreach ($query->lazyById(500) as $product) {
                     $keywordMatched++;
 
-                    if ($this->maxResults !== null && $keywordMatched >= $this->maxResults) {
+                    if ($this->maxResults !== null && $keywordMatched > $this->maxResults) {
                         break;
                     }
+
+                    $rows[] = $this->formatRow($product, $keyword);
 
                     if ($keywordMatched % 500 === 0) {
                         $export->update(['matched_rows' => $totalMatched + $keywordMatched]);
@@ -73,18 +75,13 @@ class MultiSearchExportJob implements ShouldQueue
                 }
                 $totalMatched += $keywordMatched;
                 $export->update(['matched_rows' => $totalMatched]);
-
-                // Build the actual export query (capped if requested)
-                $query = Product::query();
-                $this->applyTolerantSearch($query, $keyword);
-                $query->orderBy('id', 'asc');
-                if ($this->maxResults !== null) {
-                    $query->limit($this->maxResults);
-                }
-                $keywordQueries[$keyword] = $query;
             }
 
-            Excel::store(new MultiSearchExport($keywordQueries, $this->columns), $filename, 'local');
+            if (empty($rows)) {
+                throw new \RuntimeException('No results matched any keyword.');
+            }
+
+            Excel::store(new MultiSearchExport($rows, $this->columns), $filename, 'local');
 
             $export->update([
                 'status' => 'completed',
@@ -100,6 +97,25 @@ class MultiSearchExportJob implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * Turn one matched product into a single-sheet Excel row, with the
+     * search keyword in the first column followed by the selected columns.
+     */
+    protected function formatRow($product, string $keyword): array
+    {
+        $row = [trim($keyword)];
+
+        foreach ($this->columns as $key) {
+            if ($key === 'date') {
+                $row[] = $product->date ? date('m/d/Y', strtotime($product->date)) : '';
+            } else {
+                $row[] = $product->{$key} ?? '';
+            }
+        }
+
+        return $row;
     }
 
     /**
