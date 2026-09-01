@@ -282,11 +282,7 @@ class ProductController extends Controller
         $query = Product::query();
         $this->applyTolerantSearch($query, $keyword);
 
-        if ($request->filled('max_results')) {
-            $query->limit((int) $request->max_results);
-        }
-
-        $rows = $query->lazyById(500)->map(function ($product) use ($keyword, $request) {
+        $worker = function ($product) use ($keyword, $request) {
             $row = [$keyword];
 
             foreach ($request->columns as $key) {
@@ -298,7 +294,16 @@ class ProductController extends Controller
             }
 
             return $row;
-        })->values()->all();
+        };
+
+        // Do NOT combine limit() with lazyById(): lazyById re-applies its own
+        // limit(500) per chunk, which overrides the max_results cap. Apply the
+        // cap directly on the ordered query instead.
+        if ($request->filled('max_results')) {
+            $rows = $query->orderBy('id')->limit((int) $request->max_results)->get()->map($worker)->all();
+        } else {
+            $rows = $query->lazyById(500)->map($worker)->all();
+        }
 
         return response()->json([
             'keyword' => $keyword,
