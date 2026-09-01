@@ -56,10 +56,6 @@
 
           <button class="glass-btn header-action-btn" @click="openMultiSearchModal">
             Multi-Search
-            <span v-if="exportIsRunning" class="multi-search-badge running">
-              {{ exportState.keywordIndex }}/{{ exportState.keywordCount }} · {{ formatCount(exportState.matchedRows) }}
-            </span>
-            <span v-else-if="exportIsDone" class="multi-search-badge done">Done</span>
           </button>
 
           <div class="column-toggle-wrapper" style="position: relative;">
@@ -333,7 +329,6 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import ImportModal from './components/ImportModal.vue';
 import MultiSearchExportModal from './components/MultiSearchExportModal.vue';
-import exportState, { getActiveExportId, resumeMonitoring } from './stores/exportMonitor';
 import './assets/new-ui.css';
 import Toast from './components/Toast.vue';
 import axios from 'axios';
@@ -483,20 +478,10 @@ const searchValue = ref('');
 const showImportModal = ref(false);
 const showMultiSearchModal = ref(false);
 
-const exportIsRunning = computed(() => {
-  return exportState.exportId
-    && (exportState.status === 'pending' || exportState.status === 'processing');
-});
-const exportIsDone = computed(() => {
-  return exportState.exportId
-    && (exportState.status === 'completed' || exportState.status === 'failed');
-});
-
 const openMultiSearchModal = () => {
   showMultiSearchModal.value = true;
 };
 
-const formatCount = (n) => (n ?? 0).toLocaleString();
 const totalValue = ref(0);
 const uniqueFournisseurs = ref(0);
 const recentImports = ref(0);
@@ -616,13 +601,6 @@ onMounted(() => {
   isDark.value = saved === 'true';
   if (isDark.value) {
     document.documentElement.classList.add('dark');
-  }
-
-  // Resume live monitoring of a multi-search export started earlier,
-  // even if the page was reloaded/closed. Keeps the chip alive.
-  const activeExportId = getActiveExportId();
-  if (activeExportId) {
-    resumeMonitoring(activeExportId);
   }
 
   // Only load data if we are already logged in

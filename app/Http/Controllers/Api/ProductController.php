@@ -5,11 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Exports\ProductsExport;
 use App\Http\Controllers\Controller; // Make sure Product model is imported
 use App\Imports\ProductsImport;
-use App\Jobs\MultiSearchExportJob;
 use App\Models\Product;
-use App\Models\ProductExport;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\ValidationException;
 
@@ -269,76 +266,45 @@ class ProductController extends Controller
     }
 
     /**
-     * Start a queued multi-keyword search export.
-     * Creates a ProductExport record and dispatches a background job
-     * so huge datasets don't time out the HTTP request.
+     * Return matching rows for a single keyword as JSON so the frontend can
+     * build the Excel file on the user's device (no queue job, no server file).
      */
-    public function multiSearchExport(Request $request)
+    public function multiSearchRows(Request $request)
     {
         $request->validate([
-            'keywords' => 'required|array|min:1|max:100',
-            'keywords.*' => 'required|string|min:1|max:255',
+            'keyword' => 'required|string|min:1|max:255',
             'columns' => 'required|array|min:1',
             'columns.*' => 'required|in:id,ref,designation,marque,prix,date,fournisseur',
             'max_results' => 'nullable|integer|min:1|max:100000',
         ]);
 
-        $export = ProductExport::create([
-            'user_id' => $request->user()?->id,
-            'status' => 'pending',
-            'keyword_count' => count($request->keywords),
-            'max_results' => $request->max_results,
-        ]);
+        $keyword = trim($request->keyword);
+        $query = Product::query();
+        $this->applyTolerantSearch($query, $keyword);
 
-        MultiSearchExportJob::dispatch($export->id, $request->keywords, $request->columns, $request->max_results);
-
-        return response()->json([
-            'export_id' => $export->id,
-            'status' => $export->status,
-        ], 202);
-    }
-
-    /**
-     * Poll the status of a multi-search export.
-     */
-    public function multiSearchExportStatus($id)
-    {
-        $export = ProductExport::findOrFail($id);
-
-        return response()->json([
-            'export_id' => $export->id,
-            'status' => $export->status,
-            'keyword_count' => $export->keyword_count,
-            'keyword_index' => $export->keyword_index,
-            'current_keyword' => $export->current_keyword,
-            'matched_rows' => $export->matched_rows,
-            'max_results' => $export->max_results,
-            'error' => $export->error,
-            'filename' => $export->filename,
-            'download_url' => $export->status === 'completed'
-                ? url('/api/products/multi-search-export/'.$export->id.'/download')
-                : null,
-        ]);
-    }
-
-    /**
-     * Download a completed multi-search export file.
-     */
-    public function multiSearchExportDownload($id)
-    {
-        $export = ProductExport::findOrFail($id);
-
-        if ($export->status !== 'completed' || ! $export->file_path) {
-            return response()->json(['message' => 'Export not ready.'], 404);
+        if ($request->filled('max_results')) {
+            $query->limit((int) $request->max_results);
         }
 
-        $path = Storage::disk('local')->path($export->file_path);
+        $rows = $query->lazyById(500)->map(function ($product) use ($keyword, $request) {
+            $row = [$keyword];
 
-        if (! Storage::disk('local')->exists($export->file_path)) {
-            return response()->json(['message' => 'Export file missing.'], 404);
-        }
+            foreach ($request->columns as $key) {
+                if ($key === 'date') {
+                    $row[] = $product->date ? date('m/d/Y', strtotime($product->date)) : '';
+                } else {
+                    $row[] = $product->{$key} ?? '';
+                }
+            }
 
-        return response()->download($path, $export->filename);
+            return $row;
+        })->values()->all();
+
+        return response()->json([
+            'keyword' => $keyword,
+            'total' => count($rows),
+            'rows' => $rows,
+        ]);
     }
 
     /**

@@ -20,8 +20,8 @@
           </div>
 
           <template v-if="isRunning">
-            <h3>Searching keyword {{ exportState.keywordIndex }} of {{ exportState.keywordCount }}</h3>
-            <p class="current-keyword" v-if="exportState.currentKeyword">"{{ exportState.currentKeyword }}"</p>
+            <h3>Searching keyword {{ keywordIndex }} of {{ keywordCount }}</h3>
+            <p class="current-keyword" v-if="currentKeyword">"{{ currentKeyword }}"</p>
 
             <div class="progress-track">
               <div
@@ -33,32 +33,31 @@
             <div class="progress-stats">
               <div class="stat">
                 <span class="stat-label">Keyword</span>
-                <span class="stat-value">{{ exportState.keywordIndex }} / {{ exportState.keywordCount }}</span>
+                <span class="stat-value">{{ keywordIndex }} / {{ keywordCount }}</span>
               </div>
               <div class="stat">
                 <span class="stat-label">Matched rows</span>
-                <span class="stat-value">{{ formatNumber(exportState.matchedRows) }}</span>
+                <span class="stat-value">{{ formatNumber(matchedRows) }}</span>
               </div>
-              <div class="stat" v-if="exportState.maxResults">
+              <div class="stat" v-if="maxResults">
                 <span class="stat-label">Cap / keyword</span>
-                <span class="stat-value">{{ formatNumber(exportState.maxResults) }}</span>
+                <span class="stat-value">{{ formatNumber(maxResults) }}</span>
               </div>
             </div>
-            <p class="hint">You can close this window — the export keeps running and this status stays in the header.</p>
+            <p class="hint">This export runs on your device — keep this window open until the download starts.</p>
           </template>
 
           <template v-else-if="isDone && completed">
             <h3>Export complete!</h3>
-            <p class="current-keyword">Matched {{ formatNumber(exportState.matchedRows) }} rows across {{ exportState.keywordCount }} keyword(s).</p>
+            <p class="current-keyword">Matched {{ formatNumber(matchedRows) }} rows across {{ keywordCount }} keyword(s). The file was downloaded to your device.</p>
             <div class="done-actions">
-              <button class="btn-primary" @click="downloadAndClose">Download Excel</button>
-              <button class="btn-secondary" @click="closeModal">Later</button>
+              <button class="btn-primary" @click="closeModal">Done</button>
             </div>
           </template>
 
           <template v-else-if="isDone && failed">
             <h3>Export failed</h3>
-            <p class="error-text">{{ exportState.error || 'Something went wrong in the background job.' }}</p>
+            <p class="error-text">{{ errorMsg || 'Something went wrong fetching rows.' }}</p>
             <button class="btn-secondary" @click="closeModal">Close</button>
           </template>
         </div>
@@ -115,7 +114,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import axios from 'axios';
-import exportState, { startExport, monitorExport, stopMonitoring, hideMonitor } from '../stores/exportMonitor';
+import * as XLSX from 'xlsx';
 
 const emit = defineEmits(['close', 'toast']);
 
@@ -142,26 +141,31 @@ const selectedColumns = computed(() => {
   return columnOptions.value.filter(c => c.selected).map(c => c.value);
 });
 
+const selectedLabels = computed(() => {
+  return columnOptions.value.filter(c => c.selected).map(c => c.label);
+});
+
 const canExport = computed(() => {
   return keywordList.value.length > 0 && selectedColumns.value.length > 0;
 });
 
-const isRunning = computed(() => {
-  return exportState.exportId
-    && (exportState.status === 'pending' || exportState.status === 'processing');
-});
+// Local progress state — the whole export runs on the user's device.
+const status = ref('idle'); // idle | running | completed | failed
+const keywordIndex = ref(0);
+const keywordCount = ref(0);
+const currentKeyword = ref('');
+const matchedRows = ref(0);
+const errorMsg = ref('');
+const maxResults = ref(null);
 
-const isDone = computed(() => {
-  return exportState.exportId
-    && (exportState.status === 'completed' || exportState.status === 'failed');
-});
-
-const completed = computed(() => exportState.status === 'completed');
-const failed = computed(() => exportState.status === 'failed');
+const isRunning = computed(() => status.value === 'running');
+const isDone = computed(() => status.value === 'completed' || status.value === 'failed');
+const completed = computed(() => status.value === 'completed');
+const failed = computed(() => status.value === 'failed');
 
 const progressPercent = computed(() => {
-  if (!exportState.keywordCount) return 0;
-  return Math.min(100, Math.round((exportState.keywordIndex / exportState.keywordCount) * 100));
+  if (!keywordCount.value) return 0;
+  return Math.min(100, Math.round((keywordIndex.value / keywordCount.value) * 100));
 });
 
 const formatNumber = (n) => (n ?? 0).toLocaleString();
@@ -172,71 +176,69 @@ const showToast = (type, title, message) => {
 
 const API_BASE = 'https://api.gda.sarlpro.com/api';
 
-const triggerDownload = async (data) => {
-  const exportId = data?.export_id || exportState.exportId;
-  if (!exportId) return;
-  const downloadUrl = `${API_BASE}/products/multi-search-export/${exportId}/download`;
-  try {
-    showToast('info', 'Downloading', 'Fetching your file...');
-    const response = await axios.get(downloadUrl, { responseType: 'blob' });
-    const blob = new Blob([response.data]);
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = data?.filename || `multi_search_export_${exportId}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-    showToast('success', 'Download Complete', 'File saved.');
-  } catch (error) {
-    const status = error?.response?.status;
-    const detail = error?.response?.data?.message
-      || (typeof error?.response?.data === 'string' && error.response.data.slice(0, 200))
-      || error?.message;
-    console.error('Failed to download export:', error);
-    showToast('error', 'Download Failed', `HTTP ${status || 'network'} — ${detail}.`);
-  }
-};
-
-const downloadAndClose = () => {
-  triggerDownload(exportState);
-  closeModal();
-};
-
 const runExport = async () => {
   if (!canExport.value || isRunning.value) return;
+
+  const keywords = keywordList.value;
+  const columns = selectedColumns.value;
+  const cap = maxResultsInput.value ? parseInt(maxResultsInput.value, 10) : null;
+
+  status.value = 'running';
+  keywordCount.value = keywords.length;
+  keywordIndex.value = 0;
+  currentKeyword.value = '';
+  matchedRows.value = 0;
+  errorMsg.value = '';
+  maxResults.value = cap;
+
+  const allRows = [];
+
   try {
-    showToast('info', 'Export Started', 'Searching in the background. Watch live progress in the header.');
+    showToast('info', 'Export Started', 'Searching and building the file on your device...');
 
-    const maxResults = maxResultsInput.value ? parseInt(maxResultsInput.value, 10) : null;
-    const response = await startExport({
-      keywords: keywordList.value,
-      columns: selectedColumns.value,
-      maxResults,
-    });
+    for (let i = 0; i < keywords.length; i++) {
+      keywordIndex.value = i + 1;
+      currentKeyword.value = keywords[i];
 
-    monitorExport(response.data.export_id, {
-      onComplete: (data) => {
-        showToast('success', 'Export Complete', `File ready: ${data.filename}`);
-        triggerDownload(data);
-      },
-      onFail: (data) => {
-        showToast('error', 'Export Failed', data.error || 'Something went wrong.');
-      },
-    });
+      const { data } = await axios.post(`${API_BASE}/products/multi-search-rows`, {
+        keyword: keywords[i],
+        columns,
+        max_results: cap,
+      });
+
+      allRows.push(...data.rows);
+      matchedRows.value += data.total;
+    }
+
+    if (allRows.length === 0) {
+      throw new Error('No results matched any keyword.');
+    }
+
+    const headers = ['Search Value', ...selectedLabels.value];
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...allRows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Search Results');
+
+    const dateStamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const filename = `multi_search_export_${dateStamp}.xlsx`;
+    XLSX.writeFile(workbook, filename);
+
+    status.value = 'completed';
+    showToast('success', 'Export Complete', `Downloaded ${matchedRows.value.toLocaleString()} rows across ${keywords.length} keyword(s).`);
   } catch (error) {
-    console.error('Multi-search export failed to start:', error);
-    showToast('error', 'Export Failed', 'Could not start the export. Check console.');
+    console.error('Multi-search export failed:', error);
+    errorMsg.value = error?.response?.data?.message
+      || error?.message
+      || 'Something went wrong fetching rows.';
+    status.value = 'failed';
+    showToast('error', 'Export Failed', errorMsg.value);
   }
 };
 
 const closeModal = () => {
   if (isRunning.value) {
-    hideMonitor();
-    showToast('info', 'Export still running', 'Keep working — status shows in the header. Reopen with the "Multi-Search" button.');
-  } else if (isDone.value) {
-    stopMonitoring();
+    showToast('info', 'Export in progress', 'Keep this window open until the file is downloaded.');
+    return;
   }
   emit('close');
 };

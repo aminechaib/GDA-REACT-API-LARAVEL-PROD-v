@@ -38,9 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('products/import', [ProductController::class, 'import']);
     Route::post('products/import-mapping', [ProductController::class, 'importMapping']);
     Route::get('products/export', [ProductController::class, 'export']);
-    Route::post('products/multi-search-export', [ProductController::class, 'multiSearchExport']);
-    Route::get('products/multi-search-export/{id}', [ProductController::class, 'multiSearchExportStatus']);
-    Route::get('products/multi-search-export/{id}/download', [ProductController::class, 'multiSearchExportDownload']);
+    Route::post('products/multi-search-rows', [ProductController::class, 'multiSearchRows']);
     Route::post('products-simple', [ProductController::class, 'simpleIndex']);
 
     // Fournisseurs
