@@ -10,7 +10,7 @@
           id="email"
           v-model="form.email"
           required
-          placeholder="admin@example.com"
+          placeholder=""
         />
       </div>
 
@@ -44,8 +44,8 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 const form = reactive({
-  email: 'admin@example.com',
-  password: 'password123'
+  email: '',
+  password: ''
 });
 
 const isLoading = ref(false);

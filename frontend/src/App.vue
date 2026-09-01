@@ -144,7 +144,7 @@
       </div>
       <div class="search-group">
         <label>Date</label>
-        <input type="text" v-model="searchDate" placeholder="2026, 2026-03, or 2026-03-15" class="search-input" />
+        <input type="text" v-model="searchDate" placeholder="Search by date..." class="search-input" />
       </div>
       <div class="search-group">
         <label>Fournisseur</label>
@@ -334,7 +334,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 // AUTHENTICATION LOGIC
 // ==========================================
 const isAuthenticated = ref(false);
-const loginForm = ref({ email: 'admin@example.com', password: 'password123' });
+const loginForm = ref({ email: '', password: '' });
 const loginError = ref('');
 const isLoggingIn = ref(false);
 

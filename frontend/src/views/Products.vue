@@ -109,7 +109,7 @@
       </div>
       <div class="search-group">
         <label>Date</label>
-        <input type="text" v-model="searchDate" placeholder="2026, 2026-03, or 2026-03-15" class="search-input" />
+        <input type="text" v-model="searchDate" placeholder="" class="search-input" />
       </div>
       <div class="search-group">
         <label>Fournisseur</label>
