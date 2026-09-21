@@ -34,7 +34,6 @@ class Product extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'prix' => 'decimal:2',
         'date' => 'date',
     ];
 }
