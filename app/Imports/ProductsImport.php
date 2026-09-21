@@ -55,10 +55,7 @@ class ProductsImport implements
             $formattedDate = null; // Allow nullable
         }
 
-        $priceValue = $row['prix'] ?? '0';
-        $priceValue = str_replace(',', '.', $priceValue);
-        $cleanedPrice = preg_replace('/[^0-9\.]/', '', $priceValue);
-        $formattedPrice = !empty($cleanedPrice) ? (float) $cleanedPrice : 0.00;
+        $formattedPrice = !empty($row['prix']) ? trim((string) $row['prix']) : '';
 
         if (empty($row['ref'])) {
             return null;
