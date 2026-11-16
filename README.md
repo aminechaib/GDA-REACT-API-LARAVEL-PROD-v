@@ -95,7 +95,7 @@ php artisan key:generate
 Database migration:
 
 ```bash
-php atisan migrate
+php artisan migrate
 ```
 ### 4. Start the Laravel Backend
 
