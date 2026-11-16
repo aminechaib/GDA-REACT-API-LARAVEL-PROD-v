@@ -1,10 +1,14 @@
 # GDA – Gestion d'Arrivage
 
-\<p align="center">   \<img src="logo.png" alt="GDA Logo" width="180"> \</p>
+<p align="center">
+  <img src="logo.png" alt="GDA Logo" width="180">
+</p>
 
-\<h3 align="center">Gestion d'Arrivage\</h3>
+<h3 align="center">Gestion d'Arrivage</h3>
 
-\<p align="center">   A powerful web application for managing, searching, filtering, and organizing incoming stock and Excel-based product data. \</p>
+<p align="center">
+  A powerful web application for managing, searching, filtering, and organizing incoming stock and Excel-based product data.
+</p>
 
 ---
 
