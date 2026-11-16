@@ -349,7 +349,7 @@ const handleLogin = async () => {
   isLoggingIn.value = true;
   loginError.value = '';
   try {
-    const response = await axios.post('https://api.gda.sarlpro.com/api/login', loginForm.value );
+    const response = await axios.post('/login', loginForm.value );
     const newToken = response.data.token;
 
     localStorage.setItem('auth_token', newToken);
@@ -369,7 +369,7 @@ const handleLogin = async () => {
 
 const handleLogout = async () => {
   try {
-    await axios.post('https://api.gda.sarlpro.com/api/logout' );
+    await axios.post('/logout' );
   } catch (error) {
     console.error('Logout error', error);
   } finally {
@@ -492,7 +492,7 @@ const hideToast = () => { toast.value.show = false; };
 const loadFournisseurs = async () => {
   if (!isAuthenticated.value) return;
   try {
-    const { data } = await axios.get('https://api.gda.sarlpro.com/api/fournisseurs' );
+    const { data } = await axios.get('/fournisseurs' );
     fournisseurs.value = Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Failed to load fournisseurs', error);
@@ -553,7 +553,7 @@ const exportToExcel = async () => {
       .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 
     // Use Axios to securely download the file with the Bearer token
-    const response = await axios.get('https://api.gda.sarlpro.com/api/products/export', {
+    const response = await axios.get('/products/export', {
       params: filteredParams,
       responseType: 'blob' // CRITICAL for downloading files
     } );
@@ -665,7 +665,7 @@ const deleteSelectedRows = async () => {
 
   const ids = selectedRows.value.map(r => r.id);
   try {
-    await axios.post('https://api.gda.sarlpro.com/api/products/bulk-delete', { ids });
+    await axios.post('/products/bulk-delete', { ids });
     showToast('success', 'Deleted', `${count} product(s) deleted.`);
     selectedRows.value = [];
     loadFromServer();
@@ -721,7 +721,7 @@ const saveProduct = async () => {
   if (!editingProduct.value) return;
   savingProduct.value = true;
   try {
-    await axios.put(`https://api.gda.sarlpro.com/api/products/${editingProduct.value.id}`, {
+    await axios.put(`/products/${editingProduct.value.id}`, {
       ref: editingProduct.value.ref,
       designation: editingProduct.value.designation,
       marque: editingProduct.value.marque,
@@ -764,7 +764,7 @@ const loadFromServer = async () => {
     if (filters.value.minPrice) params.minPrice = filters.value.minPrice;
     if (filters.value.maxPrice) params.maxPrice = filters.value.maxPrice;
 
-    const response = await axios.get('https://api.gda.sarlpro.com/api/products', { params }  );
+    const response = await axios.get('/products', { params }  );
     items.value = response.data.rows.map(item => ({
       ...item,
       date_display: formatDate(item.date)

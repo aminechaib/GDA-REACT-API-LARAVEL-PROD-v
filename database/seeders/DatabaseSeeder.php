@@ -13,16 +13,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create a default admin user
-        User::factory()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
-            'password' => Hash::make('password123'), // Default password
-        ]);
-
-        // If you have other seeders (like your Fournisseur seeder), you can call them here:
-        // $this->call([
-        //     FournisseurSeeder::class,
-        // ]);
+        // Create a default admin user (idempotent so it can be re-run safely).
+        User::updateOrCreate(
+            ['email' => 'admin@example.com'],
+            [
+                'name' => 'Admin User',
+                'password' => Hash::make('password123'),
+            ]
+        );
     }
 }

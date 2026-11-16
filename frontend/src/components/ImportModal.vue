@@ -204,7 +204,7 @@ const filteredFournisseurs = computed(() => {
 const loadFournisseurs = async () => {
   loadingFournisseurs.value = true;
   try {
-    const { data } = await axios.get('https://api.gda.sarlpro.com/api/fournisseurs');
+    const { data } = await axios.get('/fournisseurs');
     fournisseurs.value = Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Failed to load fournisseurs', error);
@@ -218,7 +218,7 @@ const loadFournisseurs = async () => {
   const createFournisseur = async () => {
   if (!newFournisseurNom.value) return;
   try {
-    const { data } = await axios.post('https://api.gda.sarlpro.com/api/fournisseurs', { nom: newFournisseurNom.value });
+    const { data } = await axios.post('/fournisseurs', { nom: newFournisseurNom.value });
     fournisseurs.value.push(data);
     fournisseurId.value = data.id;
     newFournisseur.value = false;
@@ -239,7 +239,7 @@ const submitImport = async () => {
   };
 
   try {
-    await axios.post('https://api.gda.sarlpro.com/api/products/import-mapping', payload);
+    await axios.post('/products/import-mapping', payload);
     emit('close');
   } catch (error) {
     console.error('Import failed', error);
