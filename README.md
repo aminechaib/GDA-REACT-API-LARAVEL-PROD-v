@@ -164,20 +164,15 @@ GDA-REACT-API-LARAVEL-PROD-v/
 ```
 
 ---
-
 ## Developer
 
-**Designed and developed by Amine Chaib.**
-
-GDA is an independent project built to simplify incoming goods management and make working with large product datasets more efficient.
-
-\<p align="center">
-&#x20; Made with dedication by \<strong>Amine Chaib\</strong>
-\</p>
+<p align="center">
+  Made with dedication by <strong>Amine Chaib</strong>
+</p>
 
 ---
 
-\<p align="center">
-&#x20; \<strong>GDA – Gestion d'Arrivage\</strong>\<br>
-&#x20; Simplifying data management, one arrival at a time.
-\</p>
+<p align="center">
+  <strong>GDA – Gestion d'Arrivage</strong><br>
+  Simplifying data management, one arrival at a time.
+</p>
