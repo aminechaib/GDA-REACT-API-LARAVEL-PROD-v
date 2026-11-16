@@ -92,7 +92,11 @@ Generate the Laravel application key:
 ```bash
 php artisan key:generate
 ```
+Database migration:
 
+```bash
+php atisan migrate
+```
 ### 4. Start the Laravel Backend
 
 ```bash
